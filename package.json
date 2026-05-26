@@ -1,0 +1,10 @@
+{
+  "name": "lower-third-cropper",
+  "version": "1.0.0",
+  "description": "Web app untuk membuat crop lower third berbentuk kotak dengan sudut membulat, export PNG transparan",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}

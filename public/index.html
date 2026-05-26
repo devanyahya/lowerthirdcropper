@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lower Third Cropper</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2530; --line:#2a3340;
+    --txt:#e6edf3; --muted:#8b97a6; --accent:#2ec5ff; --accent-d:#0d8bc4;
+    --handle:#f0b428; --ok:#3fb950; --danger:#f85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;padding:24px 16px;
+  }
+  header{width:100%;max-width:1100px;margin-bottom:18px;}
+  h1{font-size:20px;font-weight:600;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;}
+  h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);}
+  .sub{font-size:13px;color:var(--muted);margin-top:4px;}
+  .wrap{width:100%;max-width:1100px;display:flex;flex-direction:column;gap:14px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .group{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
+  .group .lbl{font-size:12px;color:var(--muted);margin-right:2px;text-transform:uppercase;letter-spacing:.5px;}
+  button{
+    font-family:inherit;font-size:13px;color:var(--txt);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:.12s;white-space:nowrap;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent);}
+  button:active{transform:scale(.97);}
+  button.primary{background:var(--accent);color:#04212e;border-color:var(--accent);font-weight:600;}
+  button.primary:hover{background:#4fd2ff;color:#04212e;}
+  button.on{background:var(--accent);color:#04212e;border-color:var(--accent);}
+  .preset{padding:7px 11px;font-size:12px;}
+  .slider-row{display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1;min-width:240px;}
+  .slider-row label{font-size:12px;color:var(--muted);min-width:96px;}
+  input[type=range]{flex:1;accent-color:var(--accent);height:4px;cursor:pointer;}
+  .val{font-size:13px;font-weight:600;min-width:46px;text-align:right;color:var(--accent);}
+  .stage{position:relative;width:100%;background:
+      linear-gradient(45deg,#1a212b 25%,transparent 25%),
+      linear-gradient(-45deg,#1a212b 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#1a212b 75%),
+      linear-gradient(-45deg,transparent 75%,#1a212b 75%);
+    background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0px;
+    background-color:#11161d;border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center;}
+  .placeholder{color:var(--muted);font-size:14px;padding:60px 16px;text-align:center;}
+  .placeholder .ic{font-size:40px;display:block;margin-bottom:10px;opacity:.6;}
+  canvas{display:none;max-width:100%;touch-action:none;cursor:crosshair;}
+  .hint{font-size:12px;color:var(--muted);line-height:1.7;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+  .hint b{color:var(--txt);font-weight:600;}
+  .hint .k{color:var(--accent);}
+  .hint .y{color:var(--handle);}
+  .status{font-size:12px;color:var(--ok);min-height:16px;}
+  footer{margin-top:24px;font-size:11px;color:var(--muted);text-align:center;}
+  .radius-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .radius-grid button{padding:6px;font-size:11px;justify-content:center;}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot"></span>Lower Third Cropper</h1>
+  <div class="sub">Crop area lower third berbentuk kotak dengan sudut membulat yang bisa diatur — export PNG transparan.</div>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="group">
+      <button id="btnUpload" class="primary"><span>⬆</span> Upload BG</button>
+      <button id="btnGrid"><span>▦</span> Grid</button>
+      <button id="btnExport"><span>⬇</span> Export PNG</button>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" />
+    </div>
+    <div class="group">
+      <span class="lbl">Simpan</span>
+      <button id="btnSave"><span>💾</span> Simpan</button>
+      <button id="btnLoad"><span>📁</span> Load</button>
+    </div>
+  </div>
+
+  <div class="group" style="width:100%">
+    <span class="lbl">Preset</span>
+    <button class="preset" data-p="bar">Bar bawah</button>
+    <button class="preset" data-p="lower">Lower third</button>
+    <button class="preset" data-p="left">Kiri bawah</button>
+    <button class="preset" data-p="right">Kanan bawah</button>
+    <button class="preset" data-p="wide">Lebar penuh</button>
+    <button class="preset" data-p="center">Tengah</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="slider-row">
+      <label>Lengkung sudut</label>
+      <input type="range" id="radius" min="0" max="200" value="20" step="1" />
+      <span class="val" id="radiusVal">20</span>
+    </div>
+    <div class="group">
+      <span class="lbl">Sudut</span>
+      <button class="cornerBtn on" data-c="tl">↖ TL</button>
+      <button class="cornerBtn on" data-c="tr">↗ TR</button>
+      <button class="cornerBtn on" data-c="br">↘ BR</button>
+      <button class="cornerBtn on" data-c="bl">↙ BL</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="placeholder" id="placeholder">
+      <span class="ic">🖼</span>
+      Belum ada gambar — klik "Upload BG"
+    </div>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="hint">
+    <b>Cara pakai:</b> Upload gambar, pilih <b>preset</b>, lalu seret <span class="k">titik biru</span> di 4 sudut untuk mengubah ukuran &amp; posisi kotak (struktur tetap kotak).
+    Atur <b>Lengkung sudut</b> dengan slider untuk membulatkan sudut. Pilih sudut mana saja yang dibulatkan lewat tombol <b>TL/TR/BR/BL</b>.
+    Seret di dalam kotak untuk menggesernya. <b>Export PNG</b> menghasilkan crop dengan latar transparan.
+  </div>
+</div>
+
+<footer>Lower Third Cropper · berjalan lokal di browser, gambar tidak dikirim ke mana pun</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

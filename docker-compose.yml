@@ -1,0 +1,7 @@
+services:
+  lower-third-cropper:
+    build: .
+    container_name: lower-third-cropper
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3350:3000"
