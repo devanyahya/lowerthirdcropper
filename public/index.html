@@ -109,6 +109,63 @@
     </div>
   </div>
 
+  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="btnShadow"><span>◗</span> Shadow</button>
+      <span class="lbl" style="margin:0;">aktifkan untuk bayangan di belakang kotak</span>
+    </div>
+    <div id="shadowControls" style="display:none;flex-wrap:wrap;gap:10px;">
+      <div class="slider-row" style="min-width:200px;">
+        <label>Offset X</label>
+        <input type="range" id="shX" min="-80" max="80" value="0" step="1" />
+        <span class="val" id="shXVal">0</span>
+      </div>
+      <div class="slider-row" style="min-width:200px;">
+        <label>Offset Y</label>
+        <input type="range" id="shY" min="-80" max="80" value="12" step="1" />
+        <span class="val" id="shYVal">12</span>
+      </div>
+      <div class="slider-row" style="min-width:200px;">
+        <label>Blur</label>
+        <input type="range" id="shBlur" min="0" max="120" value="30" step="1" />
+        <span class="val" id="shBlurVal">30</span>
+      </div>
+      <div class="slider-row" style="min-width:200px;">
+        <label>Opacity</label>
+        <input type="range" id="shOp" min="0" max="100" value="55" step="1" />
+        <span class="val" id="shOpVal">55%</span>
+      </div>
+      <div class="group" style="min-width:160px;">
+        <span class="lbl">Warna</span>
+        <input type="color" id="shColor" value="#000000" style="width:42px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);cursor:pointer;" />
+      </div>
+    </div>
+  </div>
+
+  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="btnOutline"><span>▢</span> Outline</button>
+      <span class="lbl" style="margin:0;">garis tepi mengelilingi kotak</span>
+    </div>
+    <div id="outlineControls" style="display:none;flex-wrap:wrap;gap:10px;">
+      <div class="slider-row" style="min-width:220px;">
+        <label>Tebal</label>
+        <input type="range" id="olW" min="1" max="60" value="6" step="1" />
+        <span class="val" id="olWVal">6</span>
+      </div>
+      <div class="group" style="min-width:150px;">
+        <span class="lbl">Warna</span>
+        <input type="color" id="olColor" value="#ff3b30" style="width:42px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);cursor:pointer;" />
+      </div>
+      <div class="group" style="min-width:220px;">
+        <span class="lbl">Posisi</span>
+        <button class="olPos on" data-pos="outer">Luar</button>
+        <button class="olPos" data-pos="center">Tengah</button>
+        <button class="olPos" data-pos="inner">Dalam</button>
+      </div>
+    </div>
+  </div>
+
   <div class="stage" id="stage">
     <div class="placeholder" id="placeholder">
       <span class="ic">🖼</span>
@@ -122,7 +179,8 @@
   <div class="hint">
     <b>Cara pakai:</b> Upload gambar, pilih <b>preset</b>, lalu seret <span class="k">titik biru</span> di 4 sudut untuk mengubah ukuran &amp; posisi kotak (struktur tetap kotak).
     Atur <b>Lengkung sudut</b> dengan slider untuk membulatkan sudut. Pilih sudut mana saja yang dibulatkan lewat tombol <b>TL/TR/BR/BL</b>.
-    Seret di dalam kotak untuk menggesernya. <b>Export PNG</b> menghasilkan crop dengan latar transparan.
+    Aktifkan <b>Shadow</b> dan <b>Outline</b> untuk efek tambahan. Seret di dalam kotak untuk menggesernya.
+    <b>Export PNG</b> menghasilkan crop dengan latar transparan — kanvas otomatis diberi ruang ekstra agar shadow &amp; outline tidak terpotong.
   </div>
 </div>
 

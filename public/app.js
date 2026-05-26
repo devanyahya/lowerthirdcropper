@@ -12,11 +12,13 @@
   let drag = null;
   let saved = null;
 
-  // Rectangle defined by left/top/right/bottom in canvas coords
   let rect = { l: 0, t: 0, r: 0, b: 0 };
-  let radius = 20;            // corner radius in canvas px
+  let radius = 20;
   const corners = { tl: true, tr: true, br: true, bl: true };
   const HANDLE = 9;
+
+  const shadow = { on: false, x: 0, y: 12, blur: 30, op: 55, color: '#000000' };
+  const outline = { on: false, w: 6, color: '#ff3b30', pos: 'outer' };
 
   const presets = {
     bar:    [0.05, 0.66, 0.95, 0.93],
@@ -30,6 +32,14 @@
   function setStatus(msg, color) {
     statusEl.textContent = msg || '';
     statusEl.style.color = color || 'var(--ok)';
+  }
+
+  function hexToRgba(hex, alpha) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
   function applyPreset(name) {
@@ -68,7 +78,6 @@
     i.src = src;
   }
 
-  // Build a rounded-rect path. r is clamped so it never breaks the box.
   function buildPath(p, R, box) {
     const w = box.r - box.l;
     const h = box.b - box.t;
@@ -114,21 +123,30 @@
     ctx.fill('evenodd');
     ctx.restore();
 
-    // outline
+    // preview outline on top of dim (so user sees stroke colour)
+    if (outline.on && outline.w > 0) {
+      ctx.save();
+      buildPath(ctx, radius, rect);
+      ctx.lineWidth = outline.pos === 'center' ? outline.w : outline.w * (outline.pos === 'inner' ? 1.4 : 1.4);
+      ctx.strokeStyle = outline.color;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // editor outline
     ctx.save();
     buildPath(ctx, radius, rect);
     ctx.strokeStyle = '#2ec5ff';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
     ctx.stroke();
     ctx.restore();
 
-    // corner handles
     const hs = [
       { x: rect.l, y: rect.t }, { x: rect.r, y: rect.t },
       { x: rect.r, y: rect.b }, { x: rect.l, y: rect.b },
     ];
     hs.forEach(function (h) { drawDot(h.x, h.y, '#2ec5ff', HANDLE / 2); });
-    // edge midpoints
     const mids = [
       { x: (rect.l + rect.r) / 2, y: rect.t }, { x: rect.r, y: (rect.t + rect.b) / 2 },
       { x: (rect.l + rect.r) / 2, y: rect.b }, { x: rect.l, y: (rect.t + rect.b) / 2 },
@@ -137,8 +155,11 @@
   }
 
   function drawDot(x, y, c, r) {
+    ctx.save();
+    ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
     ctx.beginPath(); ctx.arc(x, y, r - 1.5, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
+    ctx.restore();
   }
 
   function getPos(e) {
@@ -210,7 +231,6 @@
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
-  // Controls
   document.getElementById('btnUpload').onclick = function () { fileInput.click(); };
   fileInput.onchange = function () {
     const f = fileInput.files[0]; if (!f) return;
@@ -243,14 +263,59 @@
     b.onclick = function () { applyPreset(b.dataset.p); };
   });
 
+  // Shadow controls
+  const btnShadow = document.getElementById('btnShadow');
+  const shadowControls = document.getElementById('shadowControls');
+  btnShadow.onclick = function () {
+    shadow.on = !shadow.on;
+    btnShadow.classList.toggle('on', shadow.on);
+    shadowControls.style.display = shadow.on ? 'flex' : 'none';
+    draw();
+  };
+  function bindSlider(id, valId, key, obj, suffix) {
+    const el = document.getElementById(id);
+    const v = document.getElementById(valId);
+    el.oninput = function () {
+      obj[key] = parseInt(el.value, 10);
+      v.textContent = el.value + (suffix || '');
+      draw();
+    };
+  }
+  bindSlider('shX', 'shXVal', 'x', shadow);
+  bindSlider('shY', 'shYVal', 'y', shadow);
+  bindSlider('shBlur', 'shBlurVal', 'blur', shadow);
+  bindSlider('shOp', 'shOpVal', 'op', shadow, '%');
+  document.getElementById('shColor').oninput = function () { shadow.color = this.value; draw(); };
+
+  // Outline controls
+  const btnOutline = document.getElementById('btnOutline');
+  const outlineControls = document.getElementById('outlineControls');
+  btnOutline.onclick = function () {
+    outline.on = !outline.on;
+    btnOutline.classList.toggle('on', outline.on);
+    outlineControls.style.display = outline.on ? 'flex' : 'none';
+    draw();
+  };
+  bindSlider('olW', 'olWVal', 'w', outline);
+  document.getElementById('olColor').oninput = function () { outline.color = this.value; draw(); };
+  document.querySelectorAll('.olPos').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('.olPos').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      outline.pos = b.dataset.pos;
+      draw();
+    };
+  });
+
   document.getElementById('btnSave').onclick = function () {
     if (!img) { setStatus('Upload gambar dulu', 'var(--danger)'); return; }
     saved = {
-      // store as ratios so it works on any image size
       l: rect.l / canvas.width, t: rect.t / canvas.height,
       r: rect.r / canvas.width, b: rect.b / canvas.height,
       radius: radius / canvas.width,
       corners: { ...corners },
+      shadow: { ...shadow },
+      outline: { ...outline },
     };
     try { localStorage.setItem('ltc_shape', JSON.stringify(saved)); } catch (e) {}
     setStatus('Bentuk tersimpan ✓');
@@ -271,6 +336,24 @@
     document.querySelectorAll('.cornerBtn').forEach(function (b) {
       b.classList.toggle('on', corners[b.dataset.c]);
     });
+    if (s.shadow) {
+      Object.assign(shadow, s.shadow);
+      btnShadow.classList.toggle('on', shadow.on);
+      shadowControls.style.display = shadow.on ? 'flex' : 'none';
+      document.getElementById('shX').value = shadow.x; document.getElementById('shXVal').textContent = shadow.x;
+      document.getElementById('shY').value = shadow.y; document.getElementById('shYVal').textContent = shadow.y;
+      document.getElementById('shBlur').value = shadow.blur; document.getElementById('shBlurVal').textContent = shadow.blur;
+      document.getElementById('shOp').value = shadow.op; document.getElementById('shOpVal').textContent = shadow.op + '%';
+      document.getElementById('shColor').value = shadow.color;
+    }
+    if (s.outline) {
+      Object.assign(outline, s.outline);
+      btnOutline.classList.toggle('on', outline.on);
+      outlineControls.style.display = outline.on ? 'flex' : 'none';
+      document.getElementById('olW').value = outline.w; document.getElementById('olWVal').textContent = outline.w;
+      document.getElementById('olColor').value = outline.color;
+      document.querySelectorAll('.olPos').forEach(function (x) { x.classList.toggle('on', x.dataset.pos === outline.pos); });
+    }
     draw();
     setStatus('Bentuk dimuat ✓');
   };
@@ -278,21 +361,101 @@
   document.getElementById('btnExport').onclick = function () {
     if (!img) { setStatus('Upload gambar dulu', 'var(--danger)'); return; }
     const s = img.width / canvas.width;
+
+    // padding needed so shadow & outer outline aren't clipped
+    let pad = 0;
+    if (shadow.on) {
+      pad = Math.max(pad, shadow.blur + Math.abs(shadow.x) + Math.abs(shadow.y) + 4);
+    }
+    if (outline.on && (outline.pos === 'outer' || outline.pos === 'center')) {
+      pad = Math.max(pad, outline.w + 2);
+    }
+    const padPx = Math.ceil(pad * s);
+
     const out = document.createElement('canvas');
-    out.width = img.width; out.height = img.height;
+    out.width = img.width + padPx * 2;
+    out.height = img.height + padPx * 2;
     const o = out.getContext('2d');
-    const scaledRect = { l: rect.l * s, t: rect.t * s, r: rect.r * s, b: rect.b * s };
+
     o.save();
-    buildPath(o, radius * s, scaledRect);
-    o.clip();
-    o.drawImage(img, 0, 0);
+    o.translate(padPx, padPx);
+
+    const scaledRect = { l: rect.l * s, t: rect.t * s, r: rect.r * s, b: rect.b * s };
+    const scaledShadow = shadow.on ? {
+      on: true, x: shadow.x * s, y: shadow.y * s, blur: shadow.blur * s, op: shadow.op, color: shadow.color,
+    } : null;
+    const scaledOutline = outline.on ? {
+      on: true, w: outline.w * s, color: outline.color, pos: outline.pos,
+    } : null;
+
+    // Draw the source image at its native size onto the padded export canvas.
+    const base = document.createElement('canvas');
+    base.width = img.width; base.height = img.height;
+    base.getContext('2d').drawImage(img, 0, 0);
+
+    renderCompositeExport(o, scaledRect, radius * s, base, scaledOutline, scaledShadow);
     o.restore();
+
     const a = document.createElement('a');
     a.download = 'lower-third.png';
     a.href = out.toDataURL('image/png');
     a.click();
-    setStatus('PNG diunduh ✓');
+    setStatus('PNG diunduh ✓' + (padPx ? ' (dengan ruang efek ' + padPx + 'px)' : ''));
   };
+
+  // Export-time composite that draws the source image at its native size.
+  function renderCompositeExport(c, box, R, srcImg, lw, sh) {
+    if (sh && sh.on) {
+      c.save();
+      c.shadowColor = hexToRgba(sh.color, sh.op / 100);
+      c.shadowBlur = sh.blur;
+      c.shadowOffsetX = sh.x;
+      c.shadowOffsetY = sh.y;
+      buildPath(c, R, box);
+      c.fillStyle = 'rgba(0,0,0,1)';
+      c.fill();
+      c.restore();
+    }
+
+    c.save();
+    buildPath(c, R, box);
+    c.clip();
+    c.drawImage(srcImg, 0, 0);
+    c.restore();
+
+    if (lw && lw.on && lw.w > 0) {
+      c.save();
+      if (lw.pos === 'inner') {
+        buildPath(c, R, box);
+        c.clip();
+        buildPath(c, R, box);
+        c.lineWidth = lw.w * 2;
+        c.strokeStyle = lw.color;
+        c.stroke();
+      } else if (lw.pos === 'outer') {
+        buildPath(c, R, box);
+        c.lineWidth = lw.w * 2;
+        c.strokeStyle = lw.color;
+        c.stroke();
+        c.globalCompositeOperation = 'destination-out';
+        buildPath(c, R, box);
+        c.fillStyle = '#000';
+        c.fill();
+        c.globalCompositeOperation = 'source-over';
+        c.save();
+        buildPath(c, R, box);
+        c.clip();
+        c.drawImage(srcImg, 0, 0);
+        c.restore();
+      } else {
+        buildPath(c, R, box);
+        c.lineWidth = lw.w;
+        c.strokeStyle = lw.color;
+        c.stroke();
+      }
+      c.restore();
+    }
+  }
 
   window.addEventListener('resize', function () {
     if (!img) return;

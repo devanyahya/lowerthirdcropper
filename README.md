@@ -11,6 +11,9 @@ Semua proses berjalan di browser — gambar tidak dikirim ke server.
 - Geser & ubah ukuran kotak lewat 8 titik (4 sudut + 4 tengah sisi)
 - Slider **lengkung sudut** (rounded corner) tanpa mengubah bentuk kotak
 - Pilih sudut mana saja yang dibulatkan (TL / TR / BR / BL)
+- **Shadow** (drop shadow): offset X/Y, blur, opacity, warna
+- **Outline** (garis tepi): tebal, warna, posisi (luar / tengah / dalam)
+- Saat export, kanvas otomatis diberi ruang transparan agar shadow &amp; outline tidak terpotong
 - Grid bantu (rule of thirds)
 - Simpan & load bentuk (disimpan di browser via localStorage)
 - Export PNG transparan pada resolusi asli gambar
