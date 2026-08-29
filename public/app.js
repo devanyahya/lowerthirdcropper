@@ -140,7 +140,7 @@
     ctx.save();
     buildPath(ctx, radius, rect);
     ctx.rect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(8,16,30,0.6)';
+    ctx.fillStyle = 'rgba(14,20,30,0.55)';
     ctx.fill('evenodd');
     ctx.restore();
 
@@ -156,7 +156,7 @@
     // editor outline
     ctx.save();
     buildPath(ctx, radius, rect);
-    ctx.strokeStyle = '#2ec5ff';
+    ctx.strokeStyle = '#FF5A1F';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 5]);
     ctx.stroke();
@@ -166,12 +166,12 @@
       { x: rect.l, y: rect.t }, { x: rect.r, y: rect.t },
       { x: rect.r, y: rect.b }, { x: rect.l, y: rect.b },
     ];
-    hs.forEach(function (h) { drawDot(h.x, h.y, '#2ec5ff', HANDLE / 2); });
+    hs.forEach(function (h) { drawDot(h.x, h.y, '#FF5A1F', HANDLE / 2); });
     const mids = [
       { x: (rect.l + rect.r) / 2, y: rect.t }, { x: rect.r, y: (rect.t + rect.b) / 2 },
       { x: (rect.l + rect.r) / 2, y: rect.b }, { x: rect.l, y: (rect.t + rect.b) / 2 },
     ];
-    mids.forEach(function (m) { drawDot(m.x, m.y, '#f0b428', HANDLE / 2 - 1); });
+    mids.forEach(function (m) { drawDot(m.x, m.y, '#16202E', HANDLE / 2 - 1); });
 
     updateExportInfo();
   }
@@ -381,6 +381,7 @@
     shadow.on = !shadow.on;
     btnShadow.classList.toggle('on', shadow.on);
     btnShadow.setAttribute('aria-checked', String(shadow.on));
+    syncFxState();
     shadowControls.style.display = shadow.on ? 'flex' : 'none';
     draw();
   };
@@ -406,6 +407,7 @@
     outline.on = !outline.on;
     btnOutline.classList.toggle('on', outline.on);
     btnOutline.setAttribute('aria-checked', String(outline.on));
+    syncFxState();
     outlineControls.style.display = outline.on ? 'flex' : 'none';
     draw();
   };
@@ -423,6 +425,38 @@
   // ---------- Kontrol fade & kanvas ekspor ----------
 
   function refresh() { if (img) draw(); else updateExportInfo(); }
+
+  // Rel kiri menukar kelompok kendali; hanya satu yang tampak sekaligus,
+  // supaya panel tidak lagi jadi dinding penuh penggeser.
+  const tabBtns = document.querySelectorAll('.tabBtn');
+  tabBtns.forEach(function (b) {
+    b.onclick = function () {
+      tabBtns.forEach(function (x) { x.classList.remove('on'); });
+      document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      const t = document.getElementById('tab-' + b.dataset.tab);
+      if (t) t.classList.add('on');
+    };
+  });
+
+  function railDot(tab, on) {
+    const b = document.querySelector('.tabBtn[data-tab="' + tab + '"]');
+    if (b) b.classList.toggle('active-fx', on);
+  }
+
+  // Kartu efek yang menyala dan titik di rel: keadaan hidup/mati terbaca
+  // tanpa perlu membuka kelompoknya satu per satu.
+  function syncFxState() {
+    const card = function (id, on) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('live', on);
+    };
+    card('fadeCard', fade.on);
+    card('shadowCard', shadow.on);
+    card('outlineCard', outline.on);
+    railDot('fade', fade.on);
+    railDot('efek', shadow.on || outline.on);
+  }
 
   // Sekelompok tombol yang berperilaku seperti radio: satu aktif, sisanya mati.
   function radioGroup(selector, attr, onPick) {
@@ -451,6 +485,7 @@
     fade.on = !fade.on;
     btnFade.classList.toggle('on', fade.on);
     btnFade.setAttribute('aria-checked', String(fade.on));
+    syncFxState();
     fadeControls.style.display = fade.on ? 'flex' : 'none';
     refresh();
   };
@@ -487,6 +522,8 @@
     btnFade.classList.add('on');
     fadeControls.style.display = 'flex';
     document.querySelectorAll('.fdir').forEach(function (x) { x.classList.toggle('on', x.dataset.dir === 'up'); });
+    btnFade.setAttribute('aria-checked', 'true');
+    syncFxState();
     radius = 0;
     radiusEl.value = 0; radiusVal.textContent = '0';
     applyBand();
@@ -523,6 +560,7 @@
   };
 
   syncExportUI();
+  syncFxState();
   updateExportInfo();
 
   document.getElementById('btnSave').onclick = function () {
@@ -539,7 +577,7 @@
       exportCfg: { ...exportCfg },
     };
     try { localStorage.setItem('ltc_shape', JSON.stringify(saved)); } catch (e) {}
-    setStatus('Bentuk tersimpan ✓');
+    setStatus('Bentuk tersimpan');
   };
 
   document.getElementById('btnLoad').onclick = function () {
@@ -601,8 +639,9 @@
       mg.value = exportCfg.margin; mgVal.textContent = exportCfg.margin;
       syncExportUI();
     }
+    syncFxState();
     draw();
-    setStatus('Bentuk dimuat ✓');
+    setStatus('Bentuk dimuat');
   };
 
   // ================= Ekspor =================

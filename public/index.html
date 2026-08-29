@@ -4,243 +4,322 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Lower Third Cropper</title>
+<link rel="stylesheet" href="/vendor/font/font.css?v=1" />
+<link rel="stylesheet" href="/vendor/fa/css/fontawesome.min.css?v=672" />
+<link rel="stylesheet" href="/vendor/fa/css/solid.min.css?v=672" />
 <style>
   :root{
-    /* Gelap secara sengaja: alat ini hidup berdampingan dengan OBS, Premiere,
-       dan Resolve, dan latar terang membuat penilaian transparansi menyesatkan. */
-    --bg:#080B10;
-    --panel:#0E131A;
-    --raise:#161E28;
-    --sunken:#0A0F15;
-    --line:#1D2733;
-    --hair:#141C25;
-    --txt:#E8EEF4;
-    --txt-2:#B6C3D0;
-    --muted:#77879A;
-    --dim:#4E5C6C;
-    --accent:#35C2E8;
-    --accent-ink:#04222C;
-    --handle:#F2B33D;
-    --ok:#3ECF7E;
-    --danger:#FF6257;
-    --chk-a:#12171E;
-    --chk-b:#0C1116;
+    /* Terang dan netral secara sengaja: warna hasil potongan harus dinilai
+       apa adanya, jadi antarmukanya tidak boleh ikut mewarnai penilaian. */
+    --ground:#EDF0F4;
+    --surface:#FFFFFF;
+    --sunken:#F4F6F9;
+    --line:#DBE0E8;
+    --hair:#E9EDF2;
+    --ink:#131A24;
+    --ink-2:#39434F;
+    --muted:#6A7686;
+    --dim:#9AA5B3;
 
-    --ui:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    /* Jingga sinyal — warna lampu tally, terbaca di atas gambar apa pun.
+       Dipakai untuk keadaan terpilih dan pegangan di kanvas. */
+    --sig:#FF5A1F;
+    --sig-text:#BE3A08;
+    --sig-soft:#FFF1E9;
+    --sig-line:#FFD3BE;
+
+    --btn:#16202E;
+    --btn-hover:#223043;
+    --ok:#0E8A57;
+    --danger:#C8331F;
+
+    --chk-a:#E4E8EE;
+    --chk-b:#F1F4F7;
+
+    --ui:'Plus Jakarta Sans',ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
 
-    --r:9px;
-    --topbar:52px;
-    --statusbar:30px;
+    --shadow-s:0 1px 2px rgba(19,26,36,.06);
+    --shadow-m:0 1px 2px rgba(19,26,36,.05),0 6px 16px rgba(19,26,36,.06);
+    --shadow-l:0 12px 40px rgba(19,26,36,.14);
+
+    --top:58px;
+    --status:32px;
+    --rail:78px;
+    --panel:304px;
   }
 
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;}
   body{
-    background:var(--bg);color:var(--txt);
-    font-family:var(--ui);font-size:13px;line-height:1.45;
-    -webkit-font-smoothing:antialiased;
-    overflow:hidden;
+    background:var(--ground);color:var(--ink);
+    font-family:var(--ui);font-size:13px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;overflow:hidden;
   }
-  svg{display:block;flex:none;}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
+  :focus-visible{outline:2px solid var(--sig);outline-offset:2px;border-radius:6px;}
+  i.fa-solid{display:inline-block;line-height:1;}
 
-  .app{height:100dvh;display:grid;grid-template-rows:var(--topbar) 1fr var(--statusbar);min-width:0;}
+  .app{height:100dvh;display:grid;grid-template-rows:var(--top) 1fr var(--status);min-width:0;}
 
-  /* ---------------- bilah atas ---------------- */
+  /* ============ bilah atas ============ */
   .topbar{
-    display:flex;align-items:center;gap:14px;padding:0 14px;
-    background:var(--panel);border-bottom:1px solid var(--line);min-width:0;overflow:hidden;
+    display:flex;align-items:center;gap:14px;padding:0 16px;min-width:0;
+    background:var(--surface);border-bottom:1px solid var(--line);overflow:hidden;
   }
-  .brand{display:flex;align-items:center;gap:9px;flex:none;min-width:0;}
+  .brand{display:flex;align-items:center;gap:10px;flex:none;min-width:0;}
   .brand .mark{
-    width:22px;height:22px;border-radius:6px;background:var(--accent);
-    display:grid;place-items:center;color:var(--accent-ink);
+    width:30px;height:30px;border-radius:9px;flex:none;
+    background:linear-gradient(150deg,var(--sig),#FF8A4C);
+    color:#fff;display:grid;place-items:center;font-size:13px;
+    box-shadow:0 2px 6px rgba(255,90,31,.35);
   }
-  .brand b{font-size:13.5px;font-weight:650;letter-spacing:-.01em;}
-  .brand span{color:var(--dim);font-size:12px;font-weight:400;}
-  .filename{
-    flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--muted);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  .brand .txt{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+  .brand .txt b{font-size:13.5px;font-weight:700;letter-spacing:-.015em;}
+  .brand .txt span{font-size:10.5px;color:var(--dim);font-weight:500;letter-spacing:.02em;}
+
+  .fileChip{
+    flex:1;min-width:0;display:flex;align-items:center;gap:8px;
+    background:var(--sunken);border:1px solid var(--hair);border-radius:8px;
+    padding:6px 11px;max-width:340px;
   }
-  .actions{display:flex;align-items:center;gap:7px;flex:none;}
+  .fileChip i{color:var(--dim);font-size:11px;flex:none;}
+  .fileChip span{
+    font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;min-width:0;
+  }
+  .spacer{flex:1;}
+  .actions{display:flex;align-items:center;gap:8px;flex:none;}
 
   button{
-    font-family:inherit;font-size:12.5px;color:var(--txt-2);
-    background:var(--raise);border:1px solid var(--line);border-radius:8px;
-    padding:7px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
-    white-space:nowrap;transition:background .12s,border-color .12s,color .12s;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);
+    background:var(--surface);border:1px solid var(--line);border-radius:9px;
+    padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    white-space:nowrap;box-shadow:var(--shadow-s);
+    transition:background .13s,border-color .13s,color .13s,box-shadow .13s;
   }
-  button:hover{background:#1D2732;color:var(--txt);}
-  button:active{transform:translateY(.5px);}
-  button.ghost{background:transparent;}
-  button.ghost:hover{background:var(--raise);}
-  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:640;}
-  button.primary:hover{background:#5AD2F2;color:var(--accent-ink);}
-  button.iconbtn{padding:7px;}
-  button.iconbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+  button:hover{background:var(--sunken);border-color:#CBD3DE;color:var(--ink);}
+  button:active{box-shadow:none;transform:translateY(.5px);}
+  button i{font-size:12px;}
+  button.icon{padding:8px;width:34px;justify-content:center;}
+  button.icon.on{background:var(--sig-soft);border-color:var(--sig-line);color:var(--sig-text);}
+  button.primary{
+    background:var(--btn);border-color:var(--btn);color:#fff;
+    box-shadow:0 1px 2px rgba(19,26,36,.18);
+  }
+  button.primary:hover{background:var(--btn-hover);border-color:var(--btn-hover);color:#fff;}
+  button.quiet{background:transparent;border-color:transparent;box-shadow:none;color:var(--muted);}
+  button.quiet:hover{background:var(--sunken);color:var(--ink);}
 
-  /* ---------------- area kerja ---------------- */
-  .work{display:grid;grid-template-columns:1fr 348px;min-height:0;min-width:0;}
-  .work > *{min-width:0;}
+  /* ============ area kerja ============ */
+  .work{display:grid;grid-template-columns:var(--rail) var(--panel) 1fr;min-height:0;min-width:0;}
+  .work > *{min-width:0;min-height:0;}
 
+  /* rel ikon */
+  .rail{
+    background:var(--surface);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;gap:4px;padding:12px 10px;overflow-y:auto;
+  }
+  .rail button{
+    position:relative;flex-direction:column;gap:6px;padding:11px 4px 9px;width:100%;
+    background:transparent;border:1px solid transparent;box-shadow:none;
+    color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.01em;
+  }
+  .rail button i{font-size:17px;}
+  .rail button:hover{background:var(--sunken);color:var(--ink-2);}
+  .rail button.on{
+    background:var(--sig-soft);border-color:var(--sig-line);color:var(--sig-text);
+  }
+  .rail button .dot{
+    position:absolute;top:8px;right:10px;width:7px;height:7px;border-radius:50%;
+    background:var(--sig);box-shadow:0 0 0 2px var(--surface);display:none;
+  }
+  .rail button.active-fx .dot{display:block;}
+
+  /* panel kendali */
+  .panel{
+    background:var(--surface);border-right:1px solid var(--line);
+    overflow-y:auto;overscroll-behavior:contain;
+  }
+  .panel::-webkit-scrollbar{width:10px;}
+  .panel::-webkit-scrollbar-thumb{background:#D3DAE4;border-radius:10px;border:3px solid var(--surface);}
+  .tab{display:none;flex-direction:column;gap:16px;padding:18px 18px 26px;}
+  .tab.on{display:flex;}
+  .tabhead h2{font-size:16px;font-weight:750;letter-spacing:-.02em;}
+  .tabhead p{font-size:12px;color:var(--muted);margin-top:3px;}
+
+  .group{display:flex;flex-direction:column;gap:11px;}
+  .glabel{
+    font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--dim);
+  }
+
+  /* kartu efek dengan sakelar */
+  .fxcard{
+    background:var(--sunken);border:1px solid var(--hair);border-radius:12px;padding:13px 14px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .fxcard.live{background:var(--sig-soft);border-color:var(--sig-line);}
+  .fxhead{display:flex;align-items:center;gap:11px;}
+  .fxhead .ic{
+    width:30px;height:30px;border-radius:9px;background:var(--surface);
+    border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);flex:none;font-size:12px;
+  }
+  .fxcard.live .fxhead .ic{background:var(--sig);border-color:var(--sig);color:#fff;}
+  .fxhead .t{flex:1;min-width:0;}
+  .fxhead .t b{display:block;font-size:13px;font-weight:700;letter-spacing:-.01em;}
+  .fxhead .t span{display:block;font-size:11px;color:var(--muted);}
+  .switch{
+    padding:0;width:38px;height:22px;border-radius:999px;background:#D6DCE5;
+    border:0;position:relative;flex:none;box-shadow:none;
+  }
+  .switch:hover{background:#C6CEDA;}
+  .switch::after{
+    content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(19,26,36,.25);transition:transform .16s;
+  }
+  .switch.on{background:var(--sig);}
+  .switch.on:hover{background:#F04E14;}
+  .switch.on::after{transform:translateX(16px);}
+
+  /* baris kendali seragam */
+  /* app.js menyalakan wadah ini dengan display:flex, jadi arahnya harus
+     ditetapkan di sini — kalau tidak, kendalinya berbaris menyamping. */
+  #fadeControls,#shadowControls,#outlineControls{
+    flex-direction:column;border-top:1px solid var(--sig-line);padding-top:13px;
+  }
+
+  .field{display:grid;grid-template-columns:76px 1fr 44px;align-items:center;gap:10px;}
+  .field > label{font-size:11.5px;color:var(--muted);font-weight:500;}
+  .field .v{
+    font-family:var(--mono);font-size:11px;color:var(--ink-2);text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;
+    background:#D8DFE8;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;
+    border:1px solid #C2CBD8;box-shadow:0 1px 3px rgba(19,26,36,.2);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:#fff;border:1px solid #C2CBD8;
+  }
+  .fxcard input[type=range]{background:#F2D6C6;}
+
+  .row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .rowlabel{font-size:11.5px;color:var(--muted);font-weight:500;min-width:76px;}
+
+  /* kendali tersegmen */
+  .seg{display:inline-flex;background:var(--sunken);border:1px solid var(--hair);
+    border-radius:9px;padding:3px;gap:3px;}
+  .fxcard .seg{background:var(--surface);border-color:var(--sig-line);}
+  .seg button{
+    border:1px solid transparent;background:transparent;color:var(--muted);
+    font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:6px;box-shadow:none;
+  }
+  .seg button:hover{background:transparent;color:var(--ink-2);border-color:transparent;}
+  .seg button.on{background:var(--surface);color:var(--sig-text);border-color:var(--line);
+    box-shadow:var(--shadow-s);}
+  .seg.wrap{display:flex;flex-wrap:wrap;}
+
+  /* kepingan preset dengan denah 16:9 */
+  .presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;}
+  .presets button{
+    flex-direction:column;gap:6px;padding:8px 6px 7px;align-items:stretch;
+    font-size:10.5px;font-weight:600;color:var(--muted);
+  }
+  .presets button:hover{color:var(--sig-text);border-color:var(--sig-line);background:var(--surface);}
+  .presets svg{width:100%;height:auto;border-radius:4px;background:#EDF1F6;
+    box-shadow:inset 0 0 0 1px #DFE5EC;}
+  .presets .plot{fill:#A9B5C4;}
+  .presets button:hover .plot{fill:var(--sig);}
+
+  .corners{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .corners button{padding:9px;justify-content:center;color:var(--dim);}
+  .corners button.on{background:var(--sig-soft);border-color:var(--sig-line);color:var(--sig-text);}
+  .corners button svg{width:17px;height:17px;}
+
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;width:34px;height:30px;padding:0;
+    border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px;}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:5px;}
+
+  input[type=number]{
+    font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--surface);
+    border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:74px;
+    font-variant-numeric:tabular-nums;
+  }
+  input[type=number]:focus{outline:none;border-color:var(--sig);box-shadow:0 0 0 3px var(--sig-soft);}
+
+  .hint{font-size:11px;color:var(--muted);line-height:1.6;}
+  .hint i{color:var(--dim);margin-right:5px;}
+
+  /* ============ panggung ============ */
   .stage{
-    position:relative;min-width:0;min-height:0;
-    display:grid;place-items:center;padding:26px;overflow:hidden;
+    position:relative;display:grid;place-items:center;padding:30px;overflow:hidden;
     background-color:var(--chk-b);
     background-image:
       linear-gradient(45deg,var(--chk-a) 25%,transparent 25%),
       linear-gradient(-45deg,var(--chk-a) 25%,transparent 25%),
       linear-gradient(45deg,transparent 75%,var(--chk-a) 75%),
       linear-gradient(-45deg,transparent 75%,var(--chk-a) 75%);
-    background-size:22px 22px;
-    background-position:0 0,0 11px,11px -11px,-11px 0;
+    background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;
   }
   canvas{
     display:none;max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;
-    box-shadow:0 18px 50px rgba(0,0,0,.55);border-radius:2px;
+    box-shadow:var(--shadow-l);border-radius:3px;
   }
   .placeholder{
-    display:flex;flex-direction:column;align-items:center;gap:14px;
-    color:var(--dim);text-align:center;padding:30px;
+    display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:38px 40px;box-shadow:var(--shadow-m);max-width:380px;
   }
   .placeholder .ring{
-    width:56px;height:56px;border-radius:50%;border:1px dashed #2A3644;
-    display:grid;place-items:center;color:var(--muted);
+    width:58px;height:58px;border-radius:18px;background:var(--sig-soft);
+    border:1px solid var(--sig-line);display:grid;place-items:center;
+    color:var(--sig-text);font-size:22px;
   }
-  .placeholder p{font-size:13px;color:var(--muted);max-width:34ch;}
-  .placeholder button{margin-top:2px;}
+  .placeholder h3{font-size:15.5px;font-weight:750;letter-spacing:-.02em;}
+  .placeholder p{font-size:12.5px;color:var(--muted);max-width:30ch;}
 
-  /* ---------------- panel inspektur ---------------- */
-  .inspector{
-    background:var(--panel);border-left:1px solid var(--line);
-    overflow-y:auto;overscroll-behavior:contain;min-height:0;
-  }
-  .inspector::-webkit-scrollbar{width:9px;}
-  .inspector::-webkit-scrollbar-thumb{background:#1E2833;border-radius:9px;border:2px solid var(--panel);}
-
-  .sec{border-bottom:1px solid var(--hair);}
-  .sec:last-child{border-bottom:0;}
-  .sec > .head{
-    display:flex;align-items:center;gap:10px;padding:13px 16px 11px;
-  }
-  .sec > .head h2{
-    font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
-    color:var(--muted);flex:1;
-  }
-  .sec > .head .note{font-size:11px;color:var(--dim);font-family:var(--mono);}
-  .body{display:flex;flex-direction:column;gap:12px;padding:0 16px 16px;}
-
-  /* sakelar hidup/mati untuk seksi efek */
-  .switch{
-    padding:0;width:34px;height:19px;border-radius:999px;background:var(--sunken);
-    border:1px solid var(--line);position:relative;flex:none;
-  }
-  .switch:hover{background:#0E141B;}
-  .switch::after{
-    content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
-    background:var(--dim);transition:transform .15s,background .15s;
-  }
-  .switch.on{background:var(--accent);border-color:var(--accent);}
-  .switch.on::after{transform:translateX(15px);background:var(--accent-ink);}
-
-  /* baris kendali: label, kendali, angka — semua sejajar di seluruh panel */
-  .field{display:grid;grid-template-columns:82px 1fr 46px;align-items:center;gap:10px;}
-  .field > label{font-size:11.5px;color:var(--muted);}
-  .field .v{
-    font-family:var(--mono);font-size:11px;color:var(--txt-2);
-    text-align:right;font-variant-numeric:tabular-nums;
-  }
-  input[type=range]{
-    -webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;
-    background:#22303D;cursor:pointer;
-  }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
-    background:var(--accent);border:2px solid var(--panel);cursor:pointer;
-  }
-  input[type=range]::-moz-range-thumb{
-    width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);
-  }
-
-  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .rowlabel{font-size:11.5px;color:var(--muted);min-width:82px;}
-
-  /* kendali tersegmen */
-  .seg{display:inline-flex;background:var(--sunken);border:1px solid var(--line);
-    border-radius:8px;padding:2px;gap:2px;}
-  .seg button{
-    border:0;background:transparent;color:var(--muted);font-size:11.5px;
-    padding:5px 9px;border-radius:6px;
-  }
-  .seg button:hover{color:var(--txt-2);background:transparent;}
-  .seg button.on{background:var(--raise);color:var(--txt);box-shadow:0 1px 2px rgba(0,0,0,.4);}
-  .seg.wrap{display:flex;flex-wrap:wrap;}
-
-  /* kepingan preset dengan denah kecil */
-  /* Melebar mengikuti panel, tapi tidak membesar berlebihan saat panel
-     jadi selebar layar di tablet. */
-  .presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;}
-  .presets button{
-    flex-direction:column;gap:5px;padding:7px 5px 6px;align-items:stretch;
-    font-size:10.5px;color:var(--muted);background:var(--sunken);
-  }
-  .presets button:hover{color:var(--txt-2);background:var(--raise);}
-  .presets svg{width:100%;height:auto;border-radius:3px;background:#0B1016;
-    box-shadow:inset 0 0 0 1px #1E2732;}
-  .presets .plot{fill:#3B4E60;}
-  .presets button:hover .plot{fill:var(--accent);}
-
-  /* kepingan sudut membulat */
-  .corners{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
-  .corners button{padding:7px;justify-content:center;background:var(--sunken);}
-  .corners button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
-
-  input[type=color]{
-    -webkit-appearance:none;appearance:none;width:30px;height:26px;padding:0;
-    border:1px solid var(--line);border-radius:7px;background:var(--sunken);cursor:pointer;
-  }
-  input[type=color]::-webkit-color-swatch-wrapper{padding:3px;}
-  input[type=color]::-webkit-color-swatch{border:0;border-radius:4px;}
-
-  input[type=number]{
-    font-family:var(--mono);font-size:11.5px;color:var(--txt);background:var(--sunken);
-    border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:70px;
-    font-variant-numeric:tabular-nums;
-  }
-  input[type=number]:focus{outline:none;border-color:var(--accent);}
-
-  .hint{font-size:11px;color:var(--dim);line-height:1.55;}
-
-  /* ---------------- bilah status ---------------- */
+  /* ============ bilah status ============ */
   .statusbar{
-    display:flex;align-items:center;gap:16px;padding:0 14px;
-    background:var(--panel);border-top:1px solid var(--line);
-    font-family:var(--mono);font-size:11px;color:var(--muted);min-width:0;
+    display:flex;align-items:center;gap:18px;padding:0 16px;min-width:0;
+    background:var(--surface);border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--muted);
   }
   #status{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);}
-  #exInfo{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #exInfo{flex:none;font-family:var(--mono);font-size:11px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;color:var(--muted);}
 
-  @media (max-width:960px){
+  /* ============ layar sempit ============ */
+  @media (max-width:1040px){
+    :root{--panel:272px;--rail:70px;}
+  }
+  @media (max-width:900px){
     body{overflow:auto;}
-    .app{height:auto;min-height:100dvh;grid-template-rows:var(--topbar) 1fr var(--statusbar);}
-    .work{grid-template-columns:1fr;grid-template-rows:minmax(260px,44vh) auto;}
-    .inspector{border-left:0;border-top:1px solid var(--line);overflow:visible;}
-    .stage{padding:16px;position:sticky;top:0;z-index:2;}
-    .brand span{display:none;}
-    .filename{display:none;}
+    .app{height:auto;min-height:100dvh;grid-template-rows:var(--top) 1fr var(--status);}
+    .work{grid-template-columns:1fr;grid-template-rows:minmax(240px,40vh) auto auto;}
+    .stage{grid-row:1;position:sticky;top:0;z-index:3;padding:16px;
+      border-bottom:1px solid var(--line);}
+    .rail{
+      grid-row:2;flex-direction:row;border-right:0;border-top:1px solid var(--line);
+      border-bottom:1px solid var(--line);padding:8px 10px;gap:6px;position:sticky;
+      top:calc(40vh);z-index:2;
+    }
+    .rail button{flex:1;}
+    .panel{grid-row:3;border-right:0;overflow:visible;}
+    .fileChip{max-width:none;}
   }
-  @media (max-width:620px){
-    /* Nama alat mengalah lebih dulu; tombolnya yang harus tetap terjangkau. */
-    .actions button span{display:none;}
-    .actions button{padding:7px 9px;}
-    .actions button.primary span{display:inline;}
-    .topbar{gap:8px;padding:0 10px;}
-    .actions{gap:5px;}
-    .brand b{display:none;}
-  }
-  @media (max-width:400px){
-    .actions button.primary span{display:none;}
+  @media (max-width:640px){
+    .brand .txt{display:none;}
+    .fileChip{display:none;}
+    .actions button.lbl span{display:none;}
+    .actions button.lbl{padding:8px;width:34px;justify-content:center;}
+    .topbar{padding:0 12px;gap:10px;}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -251,76 +330,49 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="mark">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
-          <rect x="1.2" y="2.2" width="13.6" height="11.6" rx="2"/>
-          <path d="M3.6 10.4h6.2" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <b>Lower Third</b><span>Cropper</span>
+      <span class="mark"><i class="fa-solid fa-closed-captioning"></i></span>
+      <span class="txt"><b>Lower Third</b><span>Cropper</span></span>
     </div>
 
-    <div class="filename" id="fileName">Belum ada gambar dimuat</div>
+    <div class="fileChip">
+      <i class="fa-solid fa-image"></i>
+      <span id="fileName">Belum ada gambar dimuat</span>
+    </div>
+
+    <div class="spacer"></div>
 
     <div class="actions">
-      <button id="btnGrid" class="iconbtn ghost" title="Garis bantu sepertiga" aria-label="Garis bantu sepertiga">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-          <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/>
-          <path d="M6 1.5v13M10.5 1.5v13M1.5 6h13M1.5 10.5h13"/>
-        </svg>
-      </button>
-      <button id="btnSave" class="ghost" title="Simpan bentuk">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2.5 2.5h8l3 3v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/>
-          <path d="M5 2.5v4h5M5 13.5v-4h6"/>
-        </svg><span>Simpan</span>
-      </button>
-      <button id="btnLoad" class="ghost" title="Muat bentuk tersimpan">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M1.8 12.8v-9a1 1 0 0 1 1-1h3.4l1.6 2h6.4a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11.4a1 1 0 0 1-1-1z"/>
-        </svg><span>Muat</span>
-      </button>
-      <button id="btnUpload" class="ghost">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2"/><path d="M2.2 10.5v2.3a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-2.3"/>
-        </svg><span>Buka gambar</span>
-      </button>
-      <button id="btnExport" class="primary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 2v8.5M4.8 7.3 8 10.5l3.2-3.2"/><path d="M2.2 11v1.8a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1V11"/>
-        </svg><span>Ekspor PNG</span>
-      </button>
+      <button id="btnGrid" class="icon quiet" title="Garis bantu sepertiga" aria-label="Garis bantu sepertiga"><i class="fa-solid fa-table-cells"></i></button>
+      <button id="btnSave" class="icon quiet" title="Simpan bentuk" aria-label="Simpan bentuk"><i class="fa-solid fa-bookmark"></i></button>
+      <button id="btnLoad" class="icon quiet" title="Muat bentuk tersimpan" aria-label="Muat bentuk tersimpan"><i class="fa-solid fa-clock-rotate-left"></i></button>
+      <button id="btnUpload" class="lbl"><i class="fa-solid fa-folder-open"></i><span>Buka gambar</span></button>
+      <button id="btnExport" class="primary lbl"><i class="fa-solid fa-file-arrow-down"></i><span>Ekspor PNG</span></button>
       <input type="file" id="fileInput" accept="image/*" hidden />
     </div>
   </header>
 
   <main class="work">
 
-    <section class="stage" id="stage">
-      <div class="placeholder" id="placeholder">
-        <span class="ring">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
-            <path d="M2.5 15.5 8 11l4 3.2L16.5 10l5 4.4"/>
-            <circle cx="8.6" cy="8.8" r="1.5"/>
-          </svg>
-        </span>
-        <p>Buka gambar latar untuk mulai memotong area lower third.</p>
-        <button class="primary" id="btnUpload2">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2"/><path d="M2.2 10.5v2.3a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-2.3"/>
-          </svg>Buka gambar
-        </button>
-      </div>
-      <canvas id="canvas"></canvas>
-    </section>
+    <!-- ============ rel ikon ============ -->
+    <nav class="rail" aria-label="Kelompok kendali">
+      <button class="tabBtn on" data-tab="bentuk" aria-label="Bentuk"><i class="fa-solid fa-crop-simple"></i>Bentuk</button>
+      <button class="tabBtn" data-tab="fade" aria-label="Fade"><span class="dot"></span><i class="fa-solid fa-circle-half-stroke"></i>Fade</button>
+      <button class="tabBtn" data-tab="efek" aria-label="Efek"><span class="dot"></span><i class="fa-solid fa-wand-magic-sparkles"></i>Efek</button>
+      <button class="tabBtn" data-tab="ekspor" aria-label="Ekspor"><i class="fa-solid fa-arrow-up-right-from-square"></i>Ekspor</button>
+    </nav>
 
-    <aside class="inspector">
+    <!-- ============ panel kendali ============ -->
+    <section class="panel">
 
-      <!-- ---------- Bentuk ---------- -->
-      <div class="sec">
-        <div class="head"><h2>Bentuk</h2></div>
-        <div class="body">
+      <!-- ---- Bentuk ---- -->
+      <div class="tab on" id="tab-bentuk">
+        <div class="tabhead">
+          <h2>Bentuk</h2>
+          <p>Pilih letak potongan, lalu haluskan sudutnya.</p>
+        </div>
+
+        <div class="group">
+          <span class="glabel">Letak</span>
           <div class="presets">
             <button class="preset" data-p="bar" title="Bar bawah">
               <svg viewBox="0 0 100 56.25"><rect class="plot" x="5" y="37.1" width="90" height="15.2" rx="2"/></svg>
@@ -347,152 +399,179 @@
               Tengah
             </button>
           </div>
+        </div>
 
+        <div class="group">
+          <span class="glabel">Sudut</span>
           <div class="field">
             <label for="radius">Lengkung</label>
             <input type="range" id="radius" min="0" max="200" value="20" step="1" />
             <span class="v" id="radiusVal">20</span>
           </div>
-
           <div class="corners">
-            <button class="cornerBtn on" data-c="tl" title="Sudut kiri atas" aria-label="Sudut kiri atas">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14V6a4 4 0 0 1 4-4h8"/></svg>
-            </button>
-            <button class="cornerBtn on" data-c="tr" title="Sudut kanan atas" aria-label="Sudut kanan atas">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h8a4 4 0 0 1 4 4v8"/></svg>
-            </button>
-            <button class="cornerBtn on" data-c="br" title="Sudut kanan bawah" aria-label="Sudut kanan bawah">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2v8a4 4 0 0 1-4 4H2"/></svg>
-            </button>
-            <button class="cornerBtn on" data-c="bl" title="Sudut kiri bawah" aria-label="Sudut kiri bawah">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 14H6a4 4 0 0 1-4-4V2"/></svg>
-            </button>
+            <button class="cornerBtn on" data-c="tl" title="Kiri atas" aria-label="Sudut kiri atas">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 14V6.5A4 4 0 0 1 6.5 2.5H14"/></svg></button>
+            <button class="cornerBtn on" data-c="tr" title="Kanan atas" aria-label="Sudut kanan atas">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 2.5h7.5a4 4 0 0 1 4 4V14"/></svg></button>
+            <button class="cornerBtn on" data-c="br" title="Kanan bawah" aria-label="Sudut kanan bawah">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M13.5 2v7.5a4 4 0 0 1-4 4H2"/></svg></button>
+            <button class="cornerBtn on" data-c="bl" title="Kiri bawah" aria-label="Sudut kiri bawah">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M14 13.5H6.5a4 4 0 0 1-4-4V2"/></svg></button>
           </div>
+          <p class="hint"><i class="fa-solid fa-circle-info"></i>Matikan sudut mana pun untuk membiarkannya lancip.</p>
         </div>
       </div>
 
-      <!-- ---------- Fade ---------- -->
-      <div class="sec">
-        <div class="head">
+      <!-- ---- Fade ---- -->
+      <div class="tab" id="tab-fade">
+        <div class="tabhead">
           <h2>Fade</h2>
-          <span class="note">pekat &rarr; hilang</span>
-          <button id="btnFade" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan fade"></button>
+          <p>Pekat di pangkal, menipis sampai hilang.</p>
         </div>
-        <div class="body" id="fadeControls" style="display:none">
-          <button id="btnFadePreset">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-              <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 9.5h13"/>
-            </svg>
-            Pasang band bawah
-          </button>
 
-          <div class="row">
-            <span class="rowlabel">Arah pudar</span>
-            <div class="seg">
-              <button class="fdir on" data-dir="up">Atas</button>
-              <button class="fdir" data-dir="down">Bawah</button>
-              <button class="fdir" data-dir="left">Kiri</button>
-              <button class="fdir" data-dir="right">Kanan</button>
+        <div class="fxcard" id="fadeCard">
+          <div class="fxhead">
+            <span class="ic"><i class="fa-solid fa-circle-half-stroke"></i></span>
+            <span class="t"><b>Pudar bertahap</b><span>tepi lembut, tanpa garis putus</span></span>
+            <button id="btnFade" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan fade"></button>
+          </div>
+
+          <div id="fadeControls" style="display:none">
+            <button id="btnFadePreset" style="width:100%;justify-content:center;">
+              <i class="fa-solid fa-bars-staggered"></i>Pasang band bawah
+            </button>
+
+            <div class="row" style="margin-top:12px">
+              <span class="rowlabel">Arah</span>
+              <div class="seg">
+                <button class="fdir on" data-dir="up">Atas</button>
+                <button class="fdir" data-dir="down">Bawah</button>
+                <button class="fdir" data-dir="left">Kiri</button>
+                <button class="fdir" data-dir="right">Kanan</button>
+              </div>
             </div>
-          </div>
 
-          <div class="row">
-            <span class="rowlabel">Kurva</span>
-            <div class="seg">
-              <button class="fcrv on" data-crv="smooth">Halus</button>
-              <button class="fcrv" data-crv="linear">Linear</button>
+            <div class="row" style="margin-top:10px">
+              <span class="rowlabel">Kurva</span>
+              <div class="seg">
+                <button class="fcrv on" data-crv="smooth">Halus</button>
+                <button class="fcrv" data-crv="linear">Linear</button>
+              </div>
             </div>
-          </div>
 
-          <div class="field">
-            <label for="fdStart">Mulai pudar</label>
-            <input type="range" id="fdStart" min="0" max="100" value="0" step="1" />
-            <span class="v" id="fdStartVal">0%</span>
-          </div>
-          <div class="field">
-            <label for="fdEnd">Hilang di</label>
-            <input type="range" id="fdEnd" min="0" max="100" value="100" step="1" />
-            <span class="v" id="fdEndVal">100%</span>
-          </div>
-          <div class="field">
-            <label for="bandH">Tinggi band</label>
-            <input type="range" id="bandH" min="2" max="100" value="25" step="1" />
-            <span class="v" id="bandHVal">25%</span>
-          </div>
-          <div class="field">
-            <label for="bandOff">Jarak bawah</label>
-            <input type="range" id="bandOff" min="0" max="80" value="0" step="1" />
-            <span class="v" id="bandOffVal">0%</span>
-          </div>
-          <p class="hint">Dua penggeser terakhir menata ulang kotak jadi band selebar penuh di bagian bawah gambar.</p>
-        </div>
-      </div>
+            <div class="group" style="margin-top:14px">
+              <div class="field">
+                <label for="fdStart">Mulai pudar</label>
+                <input type="range" id="fdStart" min="0" max="100" value="0" step="1" />
+                <span class="v" id="fdStartVal">0%</span>
+              </div>
+              <div class="field">
+                <label for="fdEnd">Hilang di</label>
+                <input type="range" id="fdEnd" min="0" max="100" value="100" step="1" />
+                <span class="v" id="fdEndVal">100%</span>
+              </div>
+            </div>
 
-      <!-- ---------- Bayangan ---------- -->
-      <div class="sec">
-        <div class="head">
-          <h2>Bayangan</h2>
-          <button id="btnShadow" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan bayangan"></button>
-        </div>
-        <div class="body" id="shadowControls" style="display:none">
-          <div class="field">
-            <label for="shX">Geser X</label>
-            <input type="range" id="shX" min="-80" max="80" value="0" step="1" />
-            <span class="v" id="shXVal">0</span>
-          </div>
-          <div class="field">
-            <label for="shY">Geser Y</label>
-            <input type="range" id="shY" min="-80" max="80" value="12" step="1" />
-            <span class="v" id="shYVal">12</span>
-          </div>
-          <div class="field">
-            <label for="shBlur">Blur</label>
-            <input type="range" id="shBlur" min="0" max="120" value="30" step="1" />
-            <span class="v" id="shBlurVal">30</span>
-          </div>
-          <div class="field">
-            <label for="shOp">Kepekatan</label>
-            <input type="range" id="shOp" min="0" max="100" value="55" step="1" />
-            <span class="v" id="shOpVal">55%</span>
-          </div>
-          <div class="row">
-            <span class="rowlabel">Warna</span>
-            <input type="color" id="shColor" value="#000000" aria-label="Warna bayangan" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ---------- Garis tepi ---------- -->
-      <div class="sec">
-        <div class="head">
-          <h2>Garis tepi</h2>
-          <button id="btnOutline" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan garis tepi"></button>
-        </div>
-        <div class="body" id="outlineControls" style="display:none">
-          <div class="field">
-            <label for="olW">Tebal</label>
-            <input type="range" id="olW" min="1" max="60" value="6" step="1" />
-            <span class="v" id="olWVal">6</span>
-          </div>
-          <div class="row">
-            <span class="rowlabel">Warna</span>
-            <input type="color" id="olColor" value="#ff3b30" aria-label="Warna garis tepi" />
-          </div>
-          <div class="row">
-            <span class="rowlabel">Posisi</span>
-            <div class="seg">
-              <button class="olPos on" data-pos="outer">Luar</button>
-              <button class="olPos" data-pos="center">Tengah</button>
-              <button class="olPos" data-pos="inner">Dalam</button>
+            <div class="group" style="margin-top:14px">
+              <span class="glabel">Band bawah</span>
+              <div class="field">
+                <label for="bandH">Tinggi</label>
+                <input type="range" id="bandH" min="2" max="100" value="25" step="1" />
+                <span class="v" id="bandHVal">25%</span>
+              </div>
+              <div class="field">
+                <label for="bandOff">Jarak bawah</label>
+                <input type="range" id="bandOff" min="0" max="80" value="0" step="1" />
+                <span class="v" id="bandOffVal">0%</span>
+              </div>
+              <p class="hint"><i class="fa-solid fa-circle-info"></i>Dua penggeser ini menata ulang kotak jadi band selebar penuh di bagian bawah gambar.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ---------- Ekspor ---------- -->
-      <div class="sec">
-        <div class="head"><h2>Ekspor</h2></div>
-        <div class="body">
+      <!-- ---- Efek ---- -->
+      <div class="tab" id="tab-efek">
+        <div class="tabhead">
+          <h2>Efek</h2>
+          <p>Bayangan dan garis tepi di sekeliling potongan.</p>
+        </div>
+
+        <div class="fxcard" id="shadowCard">
+          <div class="fxhead">
+            <span class="ic"><i class="fa-solid fa-clone"></i></span>
+            <span class="t"><b>Bayangan</b><span>mengangkat bentuk dari latar</span></span>
+            <button id="btnShadow" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan bayangan"></button>
+          </div>
+          <div id="shadowControls" style="display:none">
+            <div class="group">
+              <div class="field">
+                <label for="shX">Geser X</label>
+                <input type="range" id="shX" min="-80" max="80" value="0" step="1" />
+                <span class="v" id="shXVal">0</span>
+              </div>
+              <div class="field">
+                <label for="shY">Geser Y</label>
+                <input type="range" id="shY" min="-80" max="80" value="12" step="1" />
+                <span class="v" id="shYVal">12</span>
+              </div>
+              <div class="field">
+                <label for="shBlur">Blur</label>
+                <input type="range" id="shBlur" min="0" max="120" value="30" step="1" />
+                <span class="v" id="shBlurVal">30</span>
+              </div>
+              <div class="field">
+                <label for="shOp">Kepekatan</label>
+                <input type="range" id="shOp" min="0" max="100" value="55" step="1" />
+                <span class="v" id="shOpVal">55%</span>
+              </div>
+              <div class="row">
+                <span class="rowlabel">Warna</span>
+                <input type="color" id="shColor" value="#000000" aria-label="Warna bayangan" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fxcard" id="outlineCard">
+          <div class="fxhead">
+            <span class="ic"><i class="fa-solid fa-vector-square"></i></span>
+            <span class="t"><b>Garis tepi</b><span>membingkai potongan</span></span>
+            <button id="btnOutline" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan garis tepi"></button>
+          </div>
+          <div id="outlineControls" style="display:none">
+            <div class="group">
+              <div class="field">
+                <label for="olW">Tebal</label>
+                <input type="range" id="olW" min="1" max="60" value="6" step="1" />
+                <span class="v" id="olWVal">6</span>
+              </div>
+              <div class="row">
+                <span class="rowlabel">Warna</span>
+                <input type="color" id="olColor" value="#ff3b30" aria-label="Warna garis tepi" />
+              </div>
+              <div class="row">
+                <span class="rowlabel">Posisi</span>
+                <div class="seg">
+                  <button class="olPos on" data-pos="outer">Luar</button>
+                  <button class="olPos" data-pos="center">Tengah</button>
+                  <button class="olPos" data-pos="inner">Dalam</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- Ekspor ---- -->
+      <div class="tab" id="tab-ekspor">
+        <div class="tabhead">
+          <h2>Ekspor</h2>
+          <p>Ukuran kanvas dan letak potongan di dalamnya.</p>
+        </div>
+
+        <div class="group">
+          <span class="glabel">Kanvas</span>
           <div class="seg wrap">
             <button class="cv on" data-cv="1920x1080">1920&times;1080</button>
             <button class="cv" data-cv="3840x2160">3840&times;2160</button>
@@ -502,44 +581,54 @@
             <button class="cv" data-cv="trim">Pas ke bentuk</button>
             <button class="cv" data-cv="custom">Custom</button>
           </div>
-
           <div class="row" id="customSize" style="display:none">
-            <span class="rowlabel">Ukuran</span>
             <input type="number" id="cw" min="16" max="16384" step="1" value="1920" aria-label="Lebar kanvas" />
             <span style="color:var(--dim)">&times;</span>
             <input type="number" id="ch" min="16" max="16384" step="1" value="1080" aria-label="Tinggi kanvas" />
+            <span style="color:var(--dim);font-size:11.5px">px</span>
           </div>
+        </div>
 
-          <div class="row">
-            <span class="rowlabel">Posisi</span>
-            <div class="seg">
-              <button class="pos on" data-pos="bottom">Tengah bawah</button>
-              <button class="pos" data-pos="center">Tengah</button>
-              <button class="pos" data-pos="original">Asli</button>
-            </div>
+        <div class="group">
+          <span class="glabel">Letak di kanvas</span>
+          <div class="seg wrap">
+            <button class="pos on" data-pos="bottom">Tengah bawah</button>
+            <button class="pos" data-pos="center">Tengah</button>
+            <button class="pos" data-pos="original">Asli</button>
           </div>
-
-          <div class="row">
-            <span class="rowlabel">Jika kebesaran</span>
-            <div class="seg">
-              <button class="fitm on" data-fit="fit">Muat</button>
-              <button class="fitm" data-fit="none">Biarkan</button>
-            </div>
-          </div>
-
           <div class="field">
             <label for="mg" id="mgLabel">Jarak bawah</label>
             <input type="range" id="mg" min="0" max="400" value="0" step="1" />
             <span class="v" id="mgVal">0</span>
           </div>
         </div>
+
+        <div class="group">
+          <span class="glabel">Jika bentuk lebih besar dari kanvas</span>
+          <div class="seg">
+            <button class="fitm on" data-fit="fit">Muat ke kanvas</button>
+            <button class="fitm" data-fit="none">Biarkan terpotong</button>
+          </div>
+        </div>
       </div>
 
-    </aside>
+    </section>
+
+    <!-- ============ panggung ============ -->
+    <section class="stage" id="stage">
+      <div class="placeholder" id="placeholder">
+        <span class="ring"><i class="fa-solid fa-image"></i></span>
+        <h3>Mulai dari gambar latar</h3>
+        <p>Buka gambar, pilih letak potongannya, lalu ekspor sebagai PNG transparan.</p>
+        <button class="primary" id="btnUpload2"><i class="fa-solid fa-folder-open"></i>Buka gambar</button>
+      </div>
+      <canvas id="canvas"></canvas>
+    </section>
+
   </main>
 
   <footer class="statusbar">
-    <span id="status">Seret titik biru untuk mengubah kotak &middot; seret di dalamnya untuk menggeser</span>
+    <span id="status">Seret titik di sudut untuk mengubah kotak, seret di dalamnya untuk menggeser.</span>
     <span id="exInfo">Belum ada gambar.</span>
   </footer>
 
