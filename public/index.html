@@ -2,287 +2,548 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Lower Third Cropper</title>
 <style>
   :root{
-    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2530; --line:#2a3340;
-    --txt:#e6edf3; --muted:#8b97a6; --accent:#2ec5ff; --accent-d:#0d8bc4;
-    --handle:#f0b428; --ok:#3fb950; --danger:#f85149;
+    /* Gelap secara sengaja: alat ini hidup berdampingan dengan OBS, Premiere,
+       dan Resolve, dan latar terang membuat penilaian transparansi menyesatkan. */
+    --bg:#080B10;
+    --panel:#0E131A;
+    --raise:#161E28;
+    --sunken:#0A0F15;
+    --line:#1D2733;
+    --hair:#141C25;
+    --txt:#E8EEF4;
+    --txt-2:#B6C3D0;
+    --muted:#77879A;
+    --dim:#4E5C6C;
+    --accent:#35C2E8;
+    --accent-ink:#04222C;
+    --handle:#F2B33D;
+    --ok:#3ECF7E;
+    --danger:#FF6257;
+    --chk-a:#12171E;
+    --chk-b:#0C1116;
+
+    --ui:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+
+    --r:9px;
+    --topbar:52px;
+    --statusbar:30px;
   }
+
   *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
   body{
-    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-    background:var(--bg);color:var(--txt);min-height:100vh;
-    display:flex;flex-direction:column;align-items:center;padding:24px 16px;
+    background:var(--bg);color:var(--txt);
+    font-family:var(--ui);font-size:13px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
   }
-  header{width:100%;max-width:1100px;margin-bottom:18px;}
-  h1{font-size:20px;font-weight:600;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;}
-  h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);}
-  .sub{font-size:13px;color:var(--muted);margin-top:4px;}
-  .wrap{width:100%;max-width:1100px;display:flex;flex-direction:column;gap:14px;}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
-  .group{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);
-    border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
-  .group .lbl{font-size:12px;color:var(--muted);margin-right:2px;text-transform:uppercase;letter-spacing:.5px;}
+  svg{display:block;flex:none;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
+
+  .app{height:100dvh;display:grid;grid-template-rows:var(--topbar) 1fr var(--statusbar);min-width:0;}
+
+  /* ---------------- bilah atas ---------------- */
+  .topbar{
+    display:flex;align-items:center;gap:14px;padding:0 14px;
+    background:var(--panel);border-bottom:1px solid var(--line);min-width:0;overflow:hidden;
+  }
+  .brand{display:flex;align-items:center;gap:9px;flex:none;min-width:0;}
+  .brand .mark{
+    width:22px;height:22px;border-radius:6px;background:var(--accent);
+    display:grid;place-items:center;color:var(--accent-ink);
+  }
+  .brand b{font-size:13.5px;font-weight:650;letter-spacing:-.01em;}
+  .brand span{color:var(--dim);font-size:12px;font-weight:400;}
+  .filename{
+    flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .actions{display:flex;align-items:center;gap:7px;flex:none;}
+
   button{
-    font-family:inherit;font-size:13px;color:var(--txt);background:var(--panel-2);
-    border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;
-    display:inline-flex;align-items:center;gap:6px;transition:.12s;white-space:nowrap;
+    font-family:inherit;font-size:12.5px;color:var(--txt-2);
+    background:var(--raise);border:1px solid var(--line);border-radius:8px;
+    padding:7px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+    white-space:nowrap;transition:background .12s,border-color .12s,color .12s;
   }
-  button:hover{border-color:var(--accent);color:var(--accent);}
-  button:active{transform:scale(.97);}
-  button.primary{background:var(--accent);color:#04212e;border-color:var(--accent);font-weight:600;}
-  button.primary:hover{background:#4fd2ff;color:#04212e;}
-  button.on{background:var(--accent);color:#04212e;border-color:var(--accent);}
-  .preset{padding:7px 11px;font-size:12px;}
-  .slider-row{display:flex;align-items:center;gap:10px;background:var(--panel);
-    border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1;min-width:240px;}
-  .slider-row label{font-size:12px;color:var(--muted);min-width:96px;}
-  input[type=range]{flex:1;accent-color:var(--accent);height:4px;cursor:pointer;}
-  .val{font-size:13px;font-weight:600;min-width:46px;text-align:right;color:var(--accent);}
-  .stage{position:relative;width:100%;background:
-      linear-gradient(45deg,#1a212b 25%,transparent 25%),
-      linear-gradient(-45deg,#1a212b 25%,transparent 25%),
-      linear-gradient(45deg,transparent 75%,#1a212b 75%),
-      linear-gradient(-45deg,transparent 75%,#1a212b 75%);
-    background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0px;
-    background-color:#11161d;border:1px solid var(--line);border-radius:12px;
-    overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center;}
-  .placeholder{color:var(--muted);font-size:14px;padding:60px 16px;text-align:center;}
-  .placeholder .ic{font-size:40px;display:block;margin-bottom:10px;opacity:.6;}
-  canvas{display:none;max-width:100%;touch-action:none;cursor:crosshair;}
-  .hint{font-size:12px;color:var(--muted);line-height:1.7;background:var(--panel);
-    border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
-  .hint b{color:var(--txt);font-weight:600;}
-  .hint .k{color:var(--accent);}
-  .hint .y{color:var(--handle);}
-  .status{font-size:12px;color:var(--ok);min-height:16px;}
-  footer{margin-top:24px;font-size:11px;color:var(--muted);text-align:center;}
-  .radius-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
-  .radius-grid button{padding:6px;font-size:11px;justify-content:center;}
-  input[type=number]{font-family:inherit;font-size:13px;color:var(--txt);background:var(--panel-2);
-    border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:96px;}
+  button:hover{background:#1D2732;color:var(--txt);}
+  button:active{transform:translateY(.5px);}
+  button.ghost{background:transparent;}
+  button.ghost:hover{background:var(--raise);}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:640;}
+  button.primary:hover{background:#5AD2F2;color:var(--accent-ink);}
+  button.iconbtn{padding:7px;}
+  button.iconbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+
+  /* ---------------- area kerja ---------------- */
+  .work{display:grid;grid-template-columns:1fr 348px;min-height:0;min-width:0;}
+  .work > *{min-width:0;}
+
+  .stage{
+    position:relative;min-width:0;min-height:0;
+    display:grid;place-items:center;padding:26px;overflow:hidden;
+    background-color:var(--chk-b);
+    background-image:
+      linear-gradient(45deg,var(--chk-a) 25%,transparent 25%),
+      linear-gradient(-45deg,var(--chk-a) 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,var(--chk-a) 75%),
+      linear-gradient(-45deg,transparent 75%,var(--chk-a) 75%);
+    background-size:22px 22px;
+    background-position:0 0,0 11px,11px -11px,-11px 0;
+  }
+  canvas{
+    display:none;max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;
+    box-shadow:0 18px 50px rgba(0,0,0,.55);border-radius:2px;
+  }
+  .placeholder{
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+    color:var(--dim);text-align:center;padding:30px;
+  }
+  .placeholder .ring{
+    width:56px;height:56px;border-radius:50%;border:1px dashed #2A3644;
+    display:grid;place-items:center;color:var(--muted);
+  }
+  .placeholder p{font-size:13px;color:var(--muted);max-width:34ch;}
+  .placeholder button{margin-top:2px;}
+
+  /* ---------------- panel inspektur ---------------- */
+  .inspector{
+    background:var(--panel);border-left:1px solid var(--line);
+    overflow-y:auto;overscroll-behavior:contain;min-height:0;
+  }
+  .inspector::-webkit-scrollbar{width:9px;}
+  .inspector::-webkit-scrollbar-thumb{background:#1E2833;border-radius:9px;border:2px solid var(--panel);}
+
+  .sec{border-bottom:1px solid var(--hair);}
+  .sec:last-child{border-bottom:0;}
+  .sec > .head{
+    display:flex;align-items:center;gap:10px;padding:13px 16px 11px;
+  }
+  .sec > .head h2{
+    font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--muted);flex:1;
+  }
+  .sec > .head .note{font-size:11px;color:var(--dim);font-family:var(--mono);}
+  .body{display:flex;flex-direction:column;gap:12px;padding:0 16px 16px;}
+
+  /* sakelar hidup/mati untuk seksi efek */
+  .switch{
+    padding:0;width:34px;height:19px;border-radius:999px;background:var(--sunken);
+    border:1px solid var(--line);position:relative;flex:none;
+  }
+  .switch:hover{background:#0E141B;}
+  .switch::after{
+    content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
+    background:var(--dim);transition:transform .15s,background .15s;
+  }
+  .switch.on{background:var(--accent);border-color:var(--accent);}
+  .switch.on::after{transform:translateX(15px);background:var(--accent-ink);}
+
+  /* baris kendali: label, kendali, angka — semua sejajar di seluruh panel */
+  .field{display:grid;grid-template-columns:82px 1fr 46px;align-items:center;gap:10px;}
+  .field > label{font-size:11.5px;color:var(--muted);}
+  .field .v{
+    font-family:var(--mono);font-size:11px;color:var(--txt-2);
+    text-align:right;font-variant-numeric:tabular-nums;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;
+    background:#22303D;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);border:2px solid var(--panel);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);
+  }
+
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .rowlabel{font-size:11.5px;color:var(--muted);min-width:82px;}
+
+  /* kendali tersegmen */
+  .seg{display:inline-flex;background:var(--sunken);border:1px solid var(--line);
+    border-radius:8px;padding:2px;gap:2px;}
+  .seg button{
+    border:0;background:transparent;color:var(--muted);font-size:11.5px;
+    padding:5px 9px;border-radius:6px;
+  }
+  .seg button:hover{color:var(--txt-2);background:transparent;}
+  .seg button.on{background:var(--raise);color:var(--txt);box-shadow:0 1px 2px rgba(0,0,0,.4);}
+  .seg.wrap{display:flex;flex-wrap:wrap;}
+
+  /* kepingan preset dengan denah kecil */
+  /* Melebar mengikuti panel, tapi tidak membesar berlebihan saat panel
+     jadi selebar layar di tablet. */
+  .presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;}
+  .presets button{
+    flex-direction:column;gap:5px;padding:7px 5px 6px;align-items:stretch;
+    font-size:10.5px;color:var(--muted);background:var(--sunken);
+  }
+  .presets button:hover{color:var(--txt-2);background:var(--raise);}
+  .presets svg{width:100%;height:auto;border-radius:3px;background:#0B1016;
+    box-shadow:inset 0 0 0 1px #1E2732;}
+  .presets .plot{fill:#3B4E60;}
+  .presets button:hover .plot{fill:var(--accent);}
+
+  /* kepingan sudut membulat */
+  .corners{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .corners button{padding:7px;justify-content:center;background:var(--sunken);}
+  .corners button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;width:30px;height:26px;padding:0;
+    border:1px solid var(--line);border-radius:7px;background:var(--sunken);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px;}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:4px;}
+
+  input[type=number]{
+    font-family:var(--mono);font-size:11.5px;color:var(--txt);background:var(--sunken);
+    border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:70px;
+    font-variant-numeric:tabular-nums;
+  }
   input[type=number]:focus{outline:none;border-color:var(--accent);}
-  .exinfo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
-    color:var(--muted);letter-spacing:.2px;}
-  .sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
+
+  .hint{font-size:11px;color:var(--dim);line-height:1.55;}
+
+  /* ---------------- bilah status ---------------- */
+  .statusbar{
+    display:flex;align-items:center;gap:16px;padding:0 14px;
+    background:var(--panel);border-top:1px solid var(--line);
+    font-family:var(--mono);font-size:11px;color:var(--muted);min-width:0;
+  }
+  #status{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);}
+  #exInfo{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  @media (max-width:960px){
+    body{overflow:auto;}
+    .app{height:auto;min-height:100dvh;grid-template-rows:var(--topbar) 1fr var(--statusbar);}
+    .work{grid-template-columns:1fr;grid-template-rows:minmax(260px,44vh) auto;}
+    .inspector{border-left:0;border-top:1px solid var(--line);overflow:visible;}
+    .stage{padding:16px;position:sticky;top:0;z-index:2;}
+    .brand span{display:none;}
+    .filename{display:none;}
+  }
+  @media (max-width:620px){
+    /* Nama alat mengalah lebih dulu; tombolnya yang harus tetap terjangkau. */
+    .actions button span{display:none;}
+    .actions button{padding:7px 9px;}
+    .actions button.primary span{display:inline;}
+    .topbar{gap:8px;padding:0 10px;}
+    .actions{gap:5px;}
+    .brand b{display:none;}
+  }
+  @media (max-width:400px){
+    .actions button.primary span{display:none;}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
 <body>
-<header>
-  <h1><span class="dot"></span>Lower Third Cropper</h1>
-  <div class="sub">Crop area lower third berbentuk kotak dengan sudut membulat yang bisa diatur — export PNG transparan.</div>
-</header>
 
-<div class="wrap">
-  <div class="toolbar">
-    <div class="group">
-      <button id="btnUpload" class="primary"><span>⬆</span> Upload BG</button>
-      <button id="btnGrid"><span>▦</span> Grid</button>
-      <button id="btnExport"><span>⬇</span> Export PNG</button>
-      <input type="file" id="fileInput" accept="image/*" style="display:none" />
-    </div>
-    <div class="group">
-      <span class="lbl">Simpan</span>
-      <button id="btnSave"><span>💾</span> Simpan</button>
-      <button id="btnLoad"><span>📁</span> Load</button>
-    </div>
-  </div>
+<div class="app">
 
-  <div class="group" style="width:100%">
-    <span class="lbl">Preset</span>
-    <button class="preset" data-p="bar">Bar bawah</button>
-    <button class="preset" data-p="lower">Lower third</button>
-    <button class="preset" data-p="left">Kiri bawah</button>
-    <button class="preset" data-p="right">Kanan bawah</button>
-    <button class="preset" data-p="wide">Lebar penuh</button>
-    <button class="preset" data-p="center">Tengah</button>
-  </div>
-
-  <div class="toolbar">
-    <div class="slider-row">
-      <label>Lengkung sudut</label>
-      <input type="range" id="radius" min="0" max="200" value="20" step="1" />
-      <span class="val" id="radiusVal">20</span>
-    </div>
-    <div class="group">
-      <span class="lbl">Sudut</span>
-      <button class="cornerBtn on" data-c="tl">↖ TL</button>
-      <button class="cornerBtn on" data-c="tr">↗ TR</button>
-      <button class="cornerBtn on" data-c="br">↘ BR</button>
-      <button class="cornerBtn on" data-c="bl">↙ BL</button>
-    </div>
-  </div>
-
-  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button id="btnShadow"><span>◗</span> Shadow</button>
-      <span class="lbl" style="margin:0;">aktifkan untuk bayangan di belakang kotak</span>
-    </div>
-    <div id="shadowControls" style="display:none;flex-wrap:wrap;gap:10px;">
-      <div class="slider-row" style="min-width:200px;">
-        <label>Offset X</label>
-        <input type="range" id="shX" min="-80" max="80" value="0" step="1" />
-        <span class="val" id="shXVal">0</span>
-      </div>
-      <div class="slider-row" style="min-width:200px;">
-        <label>Offset Y</label>
-        <input type="range" id="shY" min="-80" max="80" value="12" step="1" />
-        <span class="val" id="shYVal">12</span>
-      </div>
-      <div class="slider-row" style="min-width:200px;">
-        <label>Blur</label>
-        <input type="range" id="shBlur" min="0" max="120" value="30" step="1" />
-        <span class="val" id="shBlurVal">30</span>
-      </div>
-      <div class="slider-row" style="min-width:200px;">
-        <label>Opacity</label>
-        <input type="range" id="shOp" min="0" max="100" value="55" step="1" />
-        <span class="val" id="shOpVal">55%</span>
-      </div>
-      <div class="group" style="min-width:160px;">
-        <span class="lbl">Warna</span>
-        <input type="color" id="shColor" value="#000000" style="width:42px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);cursor:pointer;" />
-      </div>
-    </div>
-  </div>
-
-  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button id="btnOutline"><span>▢</span> Outline</button>
-      <span class="lbl" style="margin:0;">garis tepi mengelilingi kotak</span>
-    </div>
-    <div id="outlineControls" style="display:none;flex-wrap:wrap;gap:10px;">
-      <div class="slider-row" style="min-width:220px;">
-        <label>Tebal</label>
-        <input type="range" id="olW" min="1" max="60" value="6" step="1" />
-        <span class="val" id="olWVal">6</span>
-      </div>
-      <div class="group" style="min-width:150px;">
-        <span class="lbl">Warna</span>
-        <input type="color" id="olColor" value="#ff3b30" style="width:42px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);cursor:pointer;" />
-      </div>
-      <div class="group" style="min-width:220px;">
-        <span class="lbl">Posisi</span>
-        <button class="olPos on" data-pos="outer">Luar</button>
-        <button class="olPos" data-pos="center">Tengah</button>
-        <button class="olPos" data-pos="inner">Dalam</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <button id="btnFade"><span>&#9662;</span> Fade</button>
-      <span class="lbl" style="margin:0;">pekat di pangkal, menipis sampai hilang</span>
-      <span class="sep"></span>
-      <button id="btnFadePreset">Pasang band bawah</button>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="1.2" y="2.2" width="13.6" height="11.6" rx="2"/>
+          <path d="M3.6 10.4h6.2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <b>Lower Third</b><span>Cropper</span>
     </div>
 
-    <div id="fadeControls" style="display:none;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="lbl" style="margin:0;">Arah pudar</span>
-        <button class="fdir on" data-dir="up">Ke atas</button>
-        <button class="fdir" data-dir="down">Ke bawah</button>
-        <button class="fdir" data-dir="left">Ke kiri</button>
-        <button class="fdir" data-dir="right">Ke kanan</button>
-        <span class="sep"></span>
-        <span class="lbl" style="margin:0;">Kurva</span>
-        <button class="fcrv on" data-crv="smooth">Halus</button>
-        <button class="fcrv" data-crv="linear">Linear</button>
-      </div>
+    <div class="filename" id="fileName">Belum ada gambar dimuat</div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="slider-row" style="min-width:250px;">
-          <label>Mulai memudar</label>
-          <input type="range" id="fdStart" min="0" max="100" value="0" step="1" />
-          <span class="val" id="fdStartVal">0%</span>
-        </div>
-        <div class="slider-row" style="min-width:250px;">
-          <label>Hilang total di</label>
-          <input type="range" id="fdEnd" min="0" max="100" value="100" step="1" />
-          <span class="val" id="fdEndVal">100%</span>
+    <div class="actions">
+      <button id="btnGrid" class="iconbtn ghost" title="Garis bantu sepertiga" aria-label="Garis bantu sepertiga">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/>
+          <path d="M6 1.5v13M10.5 1.5v13M1.5 6h13M1.5 10.5h13"/>
+        </svg>
+      </button>
+      <button id="btnSave" class="ghost" title="Simpan bentuk">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2.5 2.5h8l3 3v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/>
+          <path d="M5 2.5v4h5M5 13.5v-4h6"/>
+        </svg><span>Simpan</span>
+      </button>
+      <button id="btnLoad" class="ghost" title="Muat bentuk tersimpan">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1.8 12.8v-9a1 1 0 0 1 1-1h3.4l1.6 2h6.4a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11.4a1 1 0 0 1-1-1z"/>
+        </svg><span>Muat</span>
+      </button>
+      <button id="btnUpload" class="ghost">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2"/><path d="M2.2 10.5v2.3a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-2.3"/>
+        </svg><span>Buka gambar</span>
+      </button>
+      <button id="btnExport" class="primary">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 2v8.5M4.8 7.3 8 10.5l3.2-3.2"/><path d="M2.2 11v1.8a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1V11"/>
+        </svg><span>Ekspor PNG</span>
+      </button>
+      <input type="file" id="fileInput" accept="image/*" hidden />
+    </div>
+  </header>
+
+  <main class="work">
+
+    <section class="stage" id="stage">
+      <div class="placeholder" id="placeholder">
+        <span class="ring">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+            <path d="M2.5 15.5 8 11l4 3.2L16.5 10l5 4.4"/>
+            <circle cx="8.6" cy="8.8" r="1.5"/>
+          </svg>
+        </span>
+        <p>Buka gambar latar untuk mulai memotong area lower third.</p>
+        <button class="primary" id="btnUpload2">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2"/><path d="M2.2 10.5v2.3a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-2.3"/>
+          </svg>Buka gambar
+        </button>
+      </div>
+      <canvas id="canvas"></canvas>
+    </section>
+
+    <aside class="inspector">
+
+      <!-- ---------- Bentuk ---------- -->
+      <div class="sec">
+        <div class="head"><h2>Bentuk</h2></div>
+        <div class="body">
+          <div class="presets">
+            <button class="preset" data-p="bar" title="Bar bawah">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="5" y="37.1" width="90" height="15.2" rx="2"/></svg>
+              Bar bawah
+            </button>
+            <button class="preset" data-p="lower" title="Lower third">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="5" y="34.9" width="57" height="15.7" rx="2"/></svg>
+              Lower third
+            </button>
+            <button class="preset" data-p="left" title="Kiri bawah">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="4" y="39.4" width="41" height="13.5" rx="2"/></svg>
+              Kiri bawah
+            </button>
+            <button class="preset" data-p="right" title="Kanan bawah">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="55" y="39.4" width="41" height="13.5" rx="2"/></svg>
+              Kanan bawah
+            </button>
+            <button class="preset" data-p="wide" title="Lebar penuh">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="0" y="39.4" width="100" height="16.9"/></svg>
+              Lebar penuh
+            </button>
+            <button class="preset" data-p="center" title="Tengah">
+              <svg viewBox="0 0 100 56.25"><rect class="plot" x="22" y="22.5" width="56" height="12.4" rx="2"/></svg>
+              Tengah
+            </button>
+          </div>
+
+          <div class="field">
+            <label for="radius">Lengkung</label>
+            <input type="range" id="radius" min="0" max="200" value="20" step="1" />
+            <span class="v" id="radiusVal">20</span>
+          </div>
+
+          <div class="corners">
+            <button class="cornerBtn on" data-c="tl" title="Sudut kiri atas" aria-label="Sudut kiri atas">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14V6a4 4 0 0 1 4-4h8"/></svg>
+            </button>
+            <button class="cornerBtn on" data-c="tr" title="Sudut kanan atas" aria-label="Sudut kanan atas">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h8a4 4 0 0 1 4 4v8"/></svg>
+            </button>
+            <button class="cornerBtn on" data-c="br" title="Sudut kanan bawah" aria-label="Sudut kanan bawah">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2v8a4 4 0 0 1-4 4H2"/></svg>
+            </button>
+            <button class="cornerBtn on" data-c="bl" title="Sudut kiri bawah" aria-label="Sudut kiri bawah">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 14H6a4 4 0 0 1-4-4V2"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="slider-row" style="min-width:250px;">
-          <label>Tinggi band</label>
-          <input type="range" id="bandH" min="2" max="100" value="25" step="1" />
-          <span class="val" id="bandHVal">25%</span>
+      <!-- ---------- Fade ---------- -->
+      <div class="sec">
+        <div class="head">
+          <h2>Fade</h2>
+          <span class="note">pekat &rarr; hilang</span>
+          <button id="btnFade" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan fade"></button>
         </div>
-        <div class="slider-row" style="min-width:250px;">
-          <label>Jarak dari bawah</label>
-          <input type="range" id="bandOff" min="0" max="80" value="0" step="1" />
-          <span class="val" id="bandOffVal">0%</span>
+        <div class="body" id="fadeControls" style="display:none">
+          <button id="btnFadePreset">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 9.5h13"/>
+            </svg>
+            Pasang band bawah
+          </button>
+
+          <div class="row">
+            <span class="rowlabel">Arah pudar</span>
+            <div class="seg">
+              <button class="fdir on" data-dir="up">Atas</button>
+              <button class="fdir" data-dir="down">Bawah</button>
+              <button class="fdir" data-dir="left">Kiri</button>
+              <button class="fdir" data-dir="right">Kanan</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="rowlabel">Kurva</span>
+            <div class="seg">
+              <button class="fcrv on" data-crv="smooth">Halus</button>
+              <button class="fcrv" data-crv="linear">Linear</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fdStart">Mulai pudar</label>
+            <input type="range" id="fdStart" min="0" max="100" value="0" step="1" />
+            <span class="v" id="fdStartVal">0%</span>
+          </div>
+          <div class="field">
+            <label for="fdEnd">Hilang di</label>
+            <input type="range" id="fdEnd" min="0" max="100" value="100" step="1" />
+            <span class="v" id="fdEndVal">100%</span>
+          </div>
+          <div class="field">
+            <label for="bandH">Tinggi band</label>
+            <input type="range" id="bandH" min="2" max="100" value="25" step="1" />
+            <span class="v" id="bandHVal">25%</span>
+          </div>
+          <div class="field">
+            <label for="bandOff">Jarak bawah</label>
+            <input type="range" id="bandOff" min="0" max="80" value="0" step="1" />
+            <span class="v" id="bandOffVal">0%</span>
+          </div>
+          <p class="hint">Dua penggeser terakhir menata ulang kotak jadi band selebar penuh di bagian bawah gambar.</p>
         </div>
       </div>
-      <div class="exinfo">Dua penggeser terakhir menata ulang kotak jadi band selebar penuh di bagian bawah gambar.</div>
-    </div>
-  </div>
 
-  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span class="lbl" style="margin:0;">Kanvas ekspor</span>
-      <button class="cv on" data-cv="1920x1080">1920&times;1080</button>
-      <button class="cv" data-cv="3840x2160">3840&times;2160</button>
-      <button class="cv" data-cv="1080x1920">1080&times;1920</button>
-      <button class="cv" data-cv="1080x1350">1080&times;1350</button>
-      <button class="cv" data-cv="source">Ikut gambar</button>
-      <button class="cv" data-cv="trim">Pas ke bentuk</button>
-      <button class="cv" data-cv="custom">Custom</button>
-    </div>
-
-    <div id="customSize" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span class="lbl" style="margin:0;">Ukuran</span>
-      <input type="number" id="cw" min="16" max="16384" step="1" value="1920" />
-      <span class="lbl" style="margin:0;">&times;</span>
-      <input type="number" id="ch" min="16" max="16384" step="1" value="1080" />
-      <span class="lbl" style="margin:0;">px</span>
-    </div>
-
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span class="lbl" style="margin:0;">Posisi</span>
-      <button class="pos on" data-pos="bottom">Tengah bawah</button>
-      <button class="pos" data-pos="center">Tengah penuh</button>
-      <button class="pos" data-pos="original">Posisi asli</button>
-      <span class="sep"></span>
-      <span class="lbl" style="margin:0;">Jika melebihi kanvas</span>
-      <button class="fitm on" data-fit="fit">Muat ke kanvas</button>
-      <button class="fitm" data-fit="none">Biarkan terpotong</button>
-    </div>
-
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div class="slider-row" style="max-width:340px;min-width:240px;">
-        <label id="mgLabel">Jarak dari bawah</label>
-        <input type="range" id="mg" min="0" max="400" value="0" step="1" />
-        <span class="val" id="mgVal">0</span>
+      <!-- ---------- Bayangan ---------- -->
+      <div class="sec">
+        <div class="head">
+          <h2>Bayangan</h2>
+          <button id="btnShadow" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan bayangan"></button>
+        </div>
+        <div class="body" id="shadowControls" style="display:none">
+          <div class="field">
+            <label for="shX">Geser X</label>
+            <input type="range" id="shX" min="-80" max="80" value="0" step="1" />
+            <span class="v" id="shXVal">0</span>
+          </div>
+          <div class="field">
+            <label for="shY">Geser Y</label>
+            <input type="range" id="shY" min="-80" max="80" value="12" step="1" />
+            <span class="v" id="shYVal">12</span>
+          </div>
+          <div class="field">
+            <label for="shBlur">Blur</label>
+            <input type="range" id="shBlur" min="0" max="120" value="30" step="1" />
+            <span class="v" id="shBlurVal">30</span>
+          </div>
+          <div class="field">
+            <label for="shOp">Kepekatan</label>
+            <input type="range" id="shOp" min="0" max="100" value="55" step="1" />
+            <span class="v" id="shOpVal">55%</span>
+          </div>
+          <div class="row">
+            <span class="rowlabel">Warna</span>
+            <input type="color" id="shColor" value="#000000" aria-label="Warna bayangan" />
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="exinfo" id="exInfo">Belum ada gambar.</div>
-  </div>
+      <!-- ---------- Garis tepi ---------- -->
+      <div class="sec">
+        <div class="head">
+          <h2>Garis tepi</h2>
+          <button id="btnOutline" class="switch" role="switch" aria-checked="false" aria-label="Aktifkan garis tepi"></button>
+        </div>
+        <div class="body" id="outlineControls" style="display:none">
+          <div class="field">
+            <label for="olW">Tebal</label>
+            <input type="range" id="olW" min="1" max="60" value="6" step="1" />
+            <span class="v" id="olWVal">6</span>
+          </div>
+          <div class="row">
+            <span class="rowlabel">Warna</span>
+            <input type="color" id="olColor" value="#ff3b30" aria-label="Warna garis tepi" />
+          </div>
+          <div class="row">
+            <span class="rowlabel">Posisi</span>
+            <div class="seg">
+              <button class="olPos on" data-pos="outer">Luar</button>
+              <button class="olPos" data-pos="center">Tengah</button>
+              <button class="olPos" data-pos="inner">Dalam</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  <div class="stage" id="stage">
-    <div class="placeholder" id="placeholder">
-      <span class="ic">🖼</span>
-      Belum ada gambar — klik "Upload BG"
-    </div>
-    <canvas id="canvas"></canvas>
-  </div>
+      <!-- ---------- Ekspor ---------- -->
+      <div class="sec">
+        <div class="head"><h2>Ekspor</h2></div>
+        <div class="body">
+          <div class="seg wrap">
+            <button class="cv on" data-cv="1920x1080">1920&times;1080</button>
+            <button class="cv" data-cv="3840x2160">3840&times;2160</button>
+            <button class="cv" data-cv="1080x1920">1080&times;1920</button>
+            <button class="cv" data-cv="1080x1350">1080&times;1350</button>
+            <button class="cv" data-cv="source">Ikut gambar</button>
+            <button class="cv" data-cv="trim">Pas ke bentuk</button>
+            <button class="cv" data-cv="custom">Custom</button>
+          </div>
 
-  <div class="status" id="status"></div>
+          <div class="row" id="customSize" style="display:none">
+            <span class="rowlabel">Ukuran</span>
+            <input type="number" id="cw" min="16" max="16384" step="1" value="1920" aria-label="Lebar kanvas" />
+            <span style="color:var(--dim)">&times;</span>
+            <input type="number" id="ch" min="16" max="16384" step="1" value="1080" aria-label="Tinggi kanvas" />
+          </div>
 
-  <div class="hint">
-    <b>Cara pakai:</b> Upload gambar, pilih <b>preset</b>, lalu seret <span class="k">titik biru</span> di 4 sudut untuk mengubah ukuran &amp; posisi kotak (struktur tetap kotak).
-    Atur <b>Lengkung sudut</b> dengan slider untuk membulatkan sudut. Pilih sudut mana saja yang dibulatkan lewat tombol <b>TL/TR/BR/BL</b>.
-    Aktifkan <b>Shadow</b> dan <b>Outline</b> untuk efek tambahan. Seret di dalam kotak untuk menggesernya.
-    <b>Export PNG</b> menghasilkan crop dengan latar transparan — kanvas otomatis diberi ruang ekstra agar shadow &amp; outline tidak terpotong.
-  </div>
+          <div class="row">
+            <span class="rowlabel">Posisi</span>
+            <div class="seg">
+              <button class="pos on" data-pos="bottom">Tengah bawah</button>
+              <button class="pos" data-pos="center">Tengah</button>
+              <button class="pos" data-pos="original">Asli</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="rowlabel">Jika kebesaran</span>
+            <div class="seg">
+              <button class="fitm on" data-fit="fit">Muat</button>
+              <button class="fitm" data-fit="none">Biarkan</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="mg" id="mgLabel">Jarak bawah</label>
+            <input type="range" id="mg" min="0" max="400" value="0" step="1" />
+            <span class="v" id="mgVal">0</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="status">Seret titik biru untuk mengubah kotak &middot; seret di dalamnya untuk menggeser</span>
+    <span id="exInfo">Belum ada gambar.</span>
+  </footer>
+
 </div>
-
-<footer>Lower Third Cropper · berjalan lokal di browser, gambar tidak dikirim ke mana pun</footer>
 
 <script src="/app.js?v=__V__"></script>
 </body>

@@ -70,9 +70,16 @@
 
   function fit() {
     if (!img) return;
-    scale = Math.min(1, stage.clientWidth / img.width);
-    canvas.width = img.width * scale;
-    canvas.height = img.height * scale;
+    // Muat ke panggung pada kedua sumbu. Sebelumnya hanya lebar yang dihitung,
+    // sehingga gambar potret meluber jauh ke bawah layar.
+    const cs = getComputedStyle(stage);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const availW = Math.max(80, stage.clientWidth - padX);
+    const availH = Math.max(80, stage.clientHeight - padY);
+    scale = Math.min(1, availW / img.width, availH / img.height);
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
     canvas.style.width = canvas.width + 'px';
     canvas.style.height = canvas.height + 'px';
   }
@@ -137,27 +144,14 @@
     ctx.fill('evenodd');
     ctx.restore();
 
-    // Pratinjau fade: bagian yang memudar benar-benar dihapus dari kanvas,
-    // jadi papan catur di belakangnya terlihat persis seperti hasil PNG nanti.
-    if (fade.on) {
-      ctx.save();
-      buildPath(ctx, radius, rect);
-      ctx.clip();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = fadeGradient(ctx, rect);
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
-    }
-
-    // preview outline on top of dim (so user sees stroke colour)
-    if (outline.on && outline.w > 0) {
-      ctx.save();
-      buildPath(ctx, radius, rect);
-      ctx.lineWidth = outline.pos === 'center' ? outline.w : outline.w * (outline.pos === 'inner' ? 1.4 : 1.4);
-      ctx.strokeStyle = outline.color;
-      ctx.stroke();
-      ctx.restore();
-    }
+    // Pudar dan garis tepi digambar lewat jalur yang sama persis dengan ekspor,
+    // jadi tebal dan letaknya di layar memang seperti yang akan keluar.
+    paintShape(
+      ctx, radius, rect,
+      function () { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); },
+      outline.on && outline.w > 0 ? outline : null,
+      fade.on
+    );
 
     // editor outline
     ctx.save();
@@ -180,6 +174,57 @@
     mids.forEach(function (m) { drawDot(m.x, m.y, '#f0b428', HANDLE / 2 - 1); });
 
     updateExportInfo();
+  }
+
+  // Mengecat isi bentuk beserta pudarnya, lalu garis tepinya. Satu-satunya
+  // tempat urutan itu ditulis, sehingga pratinjau tidak bisa menyimpang
+  // dari hasil ekspor. `repaint` menggambar ulang sumber di dalam bentuk.
+  function paintShape(c, R, box, repaint, ol, fd) {
+    const bx = Math.min(box.l, box.r), by = Math.min(box.t, box.b);
+    const bw = Math.abs(box.r - box.l), bh = Math.abs(box.b - box.t);
+
+    function fillBody() {
+      c.save();
+      buildPath(c, R, box);
+      c.clip();
+      repaint();
+      if (fd) {
+        c.globalCompositeOperation = 'destination-out';
+        c.fillStyle = fadeGradient(c, box);
+        c.fillRect(bx, by, bw, bh);
+      }
+      c.restore();
+    }
+
+    fillBody();
+    if (!ol || !ol.on || !(ol.w > 0)) return;
+
+    c.save();
+    c.setLineDash([]);
+    c.strokeStyle = ol.color;
+    if (ol.pos === 'inner') {
+      // Digambar dua kali lebar lalu dipotong, menyisakan tebal penuh di dalam.
+      buildPath(c, R, box);
+      c.clip();
+      buildPath(c, R, box);
+      c.lineWidth = ol.w * 2;
+      c.stroke();
+    } else if (ol.pos === 'outer') {
+      buildPath(c, R, box);
+      c.lineWidth = ol.w * 2;
+      c.stroke();
+      c.globalCompositeOperation = 'destination-out';
+      buildPath(c, R, box);
+      c.fillStyle = '#000';
+      c.fill();
+      c.globalCompositeOperation = 'source-over';
+      fillBody();
+    } else {
+      buildPath(c, R, box);
+      c.lineWidth = ol.w;
+      c.stroke();
+    }
+    c.restore();
   }
 
   // Gradien alfa sepanjang sumbu pudar. Nilai warna dipakai sebagai
@@ -293,8 +338,13 @@
   canvas.addEventListener('pointercancel', endDrag);
 
   document.getElementById('btnUpload').onclick = function () { fileInput.click(); };
+  const btnUpload2 = document.getElementById('btnUpload2');
+  if (btnUpload2) btnUpload2.onclick = function () { fileInput.click(); };
+
   fileInput.onchange = function () {
     const f = fileInput.files[0]; if (!f) return;
+    const nameEl = document.getElementById('fileName');
+    if (nameEl) nameEl.textContent = f.name;
     const rd = new FileReader();
     rd.onload = function () { loadImage(rd.result); };
     rd.readAsDataURL(f);
@@ -330,6 +380,7 @@
   btnShadow.onclick = function () {
     shadow.on = !shadow.on;
     btnShadow.classList.toggle('on', shadow.on);
+    btnShadow.setAttribute('aria-checked', String(shadow.on));
     shadowControls.style.display = shadow.on ? 'flex' : 'none';
     draw();
   };
@@ -354,6 +405,7 @@
   btnOutline.onclick = function () {
     outline.on = !outline.on;
     btnOutline.classList.toggle('on', outline.on);
+    btnOutline.setAttribute('aria-checked', String(outline.on));
     outlineControls.style.display = outline.on ? 'flex' : 'none';
     draw();
   };
@@ -398,6 +450,7 @@
   btnFade.onclick = function () {
     fade.on = !fade.on;
     btnFade.classList.toggle('on', fade.on);
+    btnFade.setAttribute('aria-checked', String(fade.on));
     fadeControls.style.display = fade.on ? 'flex' : 'none';
     refresh();
   };
@@ -446,7 +499,7 @@
   function syncExportUI() {
     customSize.style.display = exportCfg.canvas === 'custom' ? 'flex' : 'none';
     mgLabel.textContent = exportCfg.position === 'bottom' && exportCfg.canvas !== 'trim'
-      ? 'Jarak dari bawah' : 'Margin';
+      ? 'Jarak bawah' : 'Margin';
     // Posisi tidak berlaku saat kanvas dipaskan ke bentuk; bentuknya sudah pasti di tengah.
     document.querySelectorAll('.pos').forEach(function (b) {
       b.disabled = exportCfg.canvas === 'trim';
@@ -715,8 +768,6 @@
   };
 
   function renderCompositeExport(c, box, R, srcImg, ir, lw, sh) {
-    function paintImage() { c.drawImage(srcImg, ir.x, ir.y, ir.w, ir.h); }
-
     if (sh && sh.on) {
       c.save();
       c.shadowColor = hexToRgba(sh.color, sh.op / 100);
@@ -728,55 +779,7 @@
       c.fill();
       c.restore();
     }
-
-    c.save();
-    buildPath(c, R, box);
-    c.clip();
-    paintImage();
-    if (fade.on) {
-      c.globalCompositeOperation = 'destination-out';
-      c.fillStyle = fadeGradient(c, box);
-      c.fillRect(box.l, box.t, box.r - box.l, box.b - box.t);
-    }
-    c.restore();
-
-    if (lw && lw.on && lw.w > 0) {
-      c.save();
-      if (lw.pos === 'inner') {
-        buildPath(c, R, box);
-        c.clip();
-        buildPath(c, R, box);
-        c.lineWidth = lw.w * 2;
-        c.strokeStyle = lw.color;
-        c.stroke();
-      } else if (lw.pos === 'outer') {
-        buildPath(c, R, box);
-        c.lineWidth = lw.w * 2;
-        c.strokeStyle = lw.color;
-        c.stroke();
-        c.globalCompositeOperation = 'destination-out';
-        buildPath(c, R, box);
-        c.fillStyle = '#000';
-        c.fill();
-        c.globalCompositeOperation = 'source-over';
-        c.save();
-        buildPath(c, R, box);
-        c.clip();
-        paintImage();
-        if (fade.on) {
-          c.globalCompositeOperation = 'destination-out';
-          c.fillStyle = fadeGradient(c, box);
-          c.fillRect(box.l, box.t, box.r - box.l, box.b - box.t);
-        }
-        c.restore();
-      } else {
-        buildPath(c, R, box);
-        c.lineWidth = lw.w;
-        c.strokeStyle = lw.color;
-        c.stroke();
-      }
-      c.restore();
-    }
+    paintShape(c, R, box, function () { c.drawImage(srcImg, ir.x, ir.y, ir.w, ir.h); }, lw, fade.on);
   }
 
   window.addEventListener('resize', function () {
