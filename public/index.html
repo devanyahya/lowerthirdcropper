@@ -61,6 +61,12 @@
   footer{margin-top:24px;font-size:11px;color:var(--muted);text-align:center;}
   .radius-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
   .radius-grid button{padding:6px;font-size:11px;justify-content:center;}
+  input[type=number]{font-family:inherit;font-size:13px;color:var(--txt);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:96px;}
+  input[type=number]:focus{outline:none;border-color:var(--accent);}
+  .exinfo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+    color:var(--muted);letter-spacing:.2px;}
+  .sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
 </style>
 </head>
 <body>
@@ -164,6 +170,98 @@
         <button class="olPos" data-pos="inner">Dalam</button>
       </div>
     </div>
+  </div>
+
+  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button id="btnFade"><span>&#9662;</span> Fade</button>
+      <span class="lbl" style="margin:0;">pekat di pangkal, menipis sampai hilang</span>
+      <span class="sep"></span>
+      <button id="btnFadePreset">Pasang band bawah</button>
+    </div>
+
+    <div id="fadeControls" style="display:none;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="lbl" style="margin:0;">Arah pudar</span>
+        <button class="fdir on" data-dir="up">Ke atas</button>
+        <button class="fdir" data-dir="down">Ke bawah</button>
+        <button class="fdir" data-dir="left">Ke kiri</button>
+        <button class="fdir" data-dir="right">Ke kanan</button>
+        <span class="sep"></span>
+        <span class="lbl" style="margin:0;">Kurva</span>
+        <button class="fcrv on" data-crv="smooth">Halus</button>
+        <button class="fcrv" data-crv="linear">Linear</button>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="slider-row" style="min-width:250px;">
+          <label>Mulai memudar</label>
+          <input type="range" id="fdStart" min="0" max="100" value="0" step="1" />
+          <span class="val" id="fdStartVal">0%</span>
+        </div>
+        <div class="slider-row" style="min-width:250px;">
+          <label>Hilang total di</label>
+          <input type="range" id="fdEnd" min="0" max="100" value="100" step="1" />
+          <span class="val" id="fdEndVal">100%</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="slider-row" style="min-width:250px;">
+          <label>Tinggi band</label>
+          <input type="range" id="bandH" min="2" max="100" value="25" step="1" />
+          <span class="val" id="bandHVal">25%</span>
+        </div>
+        <div class="slider-row" style="min-width:250px;">
+          <label>Jarak dari bawah</label>
+          <input type="range" id="bandOff" min="0" max="80" value="0" step="1" />
+          <span class="val" id="bandOffVal">0%</span>
+        </div>
+      </div>
+      <div class="exinfo">Dua penggeser terakhir menata ulang kotak jadi band selebar penuh di bagian bawah gambar.</div>
+    </div>
+  </div>
+
+  <div class="group" style="width:100%;flex-direction:column;align-items:stretch;gap:10px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span class="lbl" style="margin:0;">Kanvas ekspor</span>
+      <button class="cv on" data-cv="1920x1080">1920&times;1080</button>
+      <button class="cv" data-cv="3840x2160">3840&times;2160</button>
+      <button class="cv" data-cv="1080x1920">1080&times;1920</button>
+      <button class="cv" data-cv="1080x1350">1080&times;1350</button>
+      <button class="cv" data-cv="source">Ikut gambar</button>
+      <button class="cv" data-cv="trim">Pas ke bentuk</button>
+      <button class="cv" data-cv="custom">Custom</button>
+    </div>
+
+    <div id="customSize" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span class="lbl" style="margin:0;">Ukuran</span>
+      <input type="number" id="cw" min="16" max="16384" step="1" value="1920" />
+      <span class="lbl" style="margin:0;">&times;</span>
+      <input type="number" id="ch" min="16" max="16384" step="1" value="1080" />
+      <span class="lbl" style="margin:0;">px</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span class="lbl" style="margin:0;">Posisi</span>
+      <button class="pos on" data-pos="bottom">Tengah bawah</button>
+      <button class="pos" data-pos="center">Tengah penuh</button>
+      <button class="pos" data-pos="original">Posisi asli</button>
+      <span class="sep"></span>
+      <span class="lbl" style="margin:0;">Jika melebihi kanvas</span>
+      <button class="fitm on" data-fit="fit">Muat ke kanvas</button>
+      <button class="fitm" data-fit="none">Biarkan terpotong</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="slider-row" style="max-width:340px;min-width:240px;">
+        <label id="mgLabel">Jarak dari bawah</label>
+        <input type="range" id="mg" min="0" max="400" value="0" step="1" />
+        <span class="val" id="mgVal">0</span>
+      </div>
+    </div>
+
+    <div class="exinfo" id="exInfo">Belum ada gambar.</div>
   </div>
 
   <div class="stage" id="stage">

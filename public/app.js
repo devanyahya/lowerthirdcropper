@@ -20,6 +20,20 @@
   const shadow = { on: false, x: 0, y: 12, blur: 30, op: 55, color: '#000000' };
   const outline = { on: false, w: 6, color: '#ff3b30', pos: 'outer' };
 
+  // Pudar bertahap: pekat di pangkal, menipis ke arah yang dipilih sampai hilang.
+  const fade = { on: false, dir: 'up', start: 0, end: 100, curve: 'smooth' };
+  // Band selebar penuh di bagian bawah gambar, dalam persen tinggi gambar.
+  const band = { h: 25, off: 0 };
+
+  const exportCfg = {
+    canvas: '1920x1080',   // 'WxH' | 'source' | 'trim' | 'custom'
+    customW: 1920,
+    customH: 1080,
+    position: 'bottom',    // 'bottom' | 'center' | 'original'
+    fit: 'fit',            // 'fit' | 'none'
+    margin: 0,
+  };
+
   const presets = {
     bar:    [0.05, 0.66, 0.95, 0.93],
     lower:  [0.05, 0.62, 0.62, 0.90],
@@ -123,6 +137,18 @@
     ctx.fill('evenodd');
     ctx.restore();
 
+    // Pratinjau fade: bagian yang memudar benar-benar dihapus dari kanvas,
+    // jadi papan catur di belakangnya terlihat persis seperti hasil PNG nanti.
+    if (fade.on) {
+      ctx.save();
+      buildPath(ctx, radius, rect);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = fadeGradient(ctx, rect);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+
     // preview outline on top of dim (so user sees stroke colour)
     if (outline.on && outline.w > 0) {
       ctx.save();
@@ -152,6 +178,41 @@
       { x: (rect.l + rect.r) / 2, y: rect.b }, { x: rect.l, y: (rect.t + rect.b) / 2 },
     ];
     mids.forEach(function (m) { drawDot(m.x, m.y, '#f0b428', HANDLE / 2 - 1); });
+
+    updateExportInfo();
+  }
+
+  // Gradien alfa sepanjang sumbu pudar. Nilai warna dipakai sebagai
+  // "seberapa banyak dihapus": 0 = utuh, 1 = hilang sepenuhnya.
+  function fadeGradient(c, box) {
+    const l = Math.min(box.l, box.r), r = Math.max(box.l, box.r);
+    const t = Math.min(box.t, box.b), b = Math.max(box.t, box.b);
+    let x0, y0, x1, y1;
+    if (fade.dir === 'down')       { x0 = l; y0 = t; x1 = l; y1 = b; }
+    else if (fade.dir === 'left')  { x0 = r; y0 = t; x1 = l; y1 = t; }
+    else if (fade.dir === 'right') { x0 = l; y0 = t; x1 = r; y1 = t; }
+    else                           { x0 = l; y0 = b; x1 = l; y1 = t; }
+
+    const g = c.createLinearGradient(x0, y0, x1, y1);
+    const a = Math.min(fade.start, fade.end) / 100;
+    const z = Math.max(fade.start, fade.end) / 100;
+
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    if (a > 0) g.addColorStop(a, 'rgba(0,0,0,0)');
+    if (z > a) {
+      if (fade.curve === 'smooth') {
+        for (let i = 1; i < 8; i++) {
+          const u = i / 8;
+          const e = u * u * (3 - 2 * u);
+          g.addColorStop(a + (z - a) * u, 'rgba(0,0,0,' + e.toFixed(4) + ')');
+        }
+      }
+      g.addColorStop(z, 'rgba(0,0,0,1)');
+    } else {
+      g.addColorStop(Math.min(1, a + 0.0001), 'rgba(0,0,0,1)');
+    }
+    if (z < 1) g.addColorStop(1, 'rgba(0,0,0,1)');
+    return g;
   }
 
   function drawDot(x, y, c, r) {
@@ -307,6 +368,110 @@
     };
   });
 
+  // ---------- Kontrol fade & kanvas ekspor ----------
+
+  function refresh() { if (img) draw(); else updateExportInfo(); }
+
+  // Sekelompok tombol yang berperilaku seperti radio: satu aktif, sisanya mati.
+  function radioGroup(selector, attr, onPick) {
+    const els = document.querySelectorAll(selector);
+    els.forEach(function (b) {
+      b.onclick = function () {
+        els.forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        onPick(b.dataset[attr]);
+      };
+    });
+  }
+
+  function pct(el, valEl, obj, key, after) {
+    el.oninput = function () {
+      obj[key] = parseInt(el.value, 10);
+      valEl.textContent = el.value + '%';
+      if (after) after();
+      refresh();
+    };
+  }
+
+  const btnFade = document.getElementById('btnFade');
+  const fadeControls = document.getElementById('fadeControls');
+  btnFade.onclick = function () {
+    fade.on = !fade.on;
+    btnFade.classList.toggle('on', fade.on);
+    fadeControls.style.display = fade.on ? 'flex' : 'none';
+    refresh();
+  };
+
+  radioGroup('.fdir', 'dir', function (v) { fade.dir = v; refresh(); });
+  radioGroup('.fcrv', 'crv', function (v) { fade.curve = v; refresh(); });
+
+  const fdStart = document.getElementById('fdStart');
+  const fdEnd = document.getElementById('fdEnd');
+  pct(fdStart, document.getElementById('fdStartVal'), fade, 'start');
+  pct(fdEnd, document.getElementById('fdEndVal'), fade, 'end');
+
+  // Menata ulang kotak jadi band selebar penuh di bagian bawah gambar.
+  function applyBand() {
+    if (!img) return;
+    const h = canvas.height * (band.h / 100);
+    const off = canvas.height * (band.off / 100);
+    rect = {
+      l: 0,
+      r: canvas.width,
+      b: Math.max(0, canvas.height - off),
+      t: Math.max(0, canvas.height - off - h),
+    };
+    draw();
+  }
+
+  pct(document.getElementById('bandH'), document.getElementById('bandHVal'), band, 'h', applyBand);
+  pct(document.getElementById('bandOff'), document.getElementById('bandOffVal'), band, 'off', applyBand);
+
+  document.getElementById('btnFadePreset').onclick = function () {
+    if (!img) { setStatus('Upload gambar dulu', 'var(--danger)'); return; }
+    fade.on = true;
+    fade.dir = 'up';
+    btnFade.classList.add('on');
+    fadeControls.style.display = 'flex';
+    document.querySelectorAll('.fdir').forEach(function (x) { x.classList.toggle('on', x.dataset.dir === 'up'); });
+    radius = 0;
+    radiusEl.value = 0; radiusVal.textContent = '0';
+    applyBand();
+    setStatus('Band bawah dipasang — tinggi ' + band.h + '% gambar, memudar ke atas');
+  };
+
+  const mgLabel = document.getElementById('mgLabel');
+  const customSize = document.getElementById('customSize');
+
+  function syncExportUI() {
+    customSize.style.display = exportCfg.canvas === 'custom' ? 'flex' : 'none';
+    mgLabel.textContent = exportCfg.position === 'bottom' && exportCfg.canvas !== 'trim'
+      ? 'Jarak dari bawah' : 'Margin';
+    // Posisi tidak berlaku saat kanvas dipaskan ke bentuk; bentuknya sudah pasti di tengah.
+    document.querySelectorAll('.pos').forEach(function (b) {
+      b.disabled = exportCfg.canvas === 'trim';
+      b.style.opacity = exportCfg.canvas === 'trim' ? '.45' : '';
+    });
+  }
+
+  radioGroup('.cv', 'cv', function (v) { exportCfg.canvas = v; syncExportUI(); refresh(); });
+  radioGroup('.pos', 'pos', function (v) { exportCfg.position = v; syncExportUI(); refresh(); });
+  radioGroup('.fitm', 'fit', function (v) { exportCfg.fit = v; refresh(); });
+
+  document.getElementById('cw').oninput = function () { exportCfg.customW = parseInt(this.value, 10); refresh(); };
+  document.getElementById('ch').oninput = function () { exportCfg.customH = parseInt(this.value, 10); refresh(); };
+
+  const mg = document.getElementById('mg');
+  const mgVal = document.getElementById('mgVal');
+  mg.oninput = function () {
+    exportCfg.margin = parseInt(mg.value, 10);
+    mgVal.textContent = mg.value;
+    refresh();
+  };
+
+  syncExportUI();
+  updateExportInfo();
+
   document.getElementById('btnSave').onclick = function () {
     if (!img) { setStatus('Upload gambar dulu', 'var(--danger)'); return; }
     saved = {
@@ -316,6 +481,9 @@
       corners: { ...corners },
       shadow: { ...shadow },
       outline: { ...outline },
+      fade: { ...fade },
+      band: { ...band },
+      exportCfg: { ...exportCfg },
     };
     try { localStorage.setItem('ltc_shape', JSON.stringify(saved)); } catch (e) {}
     setStatus('Bentuk tersimpan ✓');
@@ -354,57 +522,201 @@
       document.getElementById('olColor').value = outline.color;
       document.querySelectorAll('.olPos').forEach(function (x) { x.classList.toggle('on', x.dataset.pos === outline.pos); });
     }
+    if (s.fade) {
+      Object.assign(fade, s.fade);
+      btnFade.classList.toggle('on', fade.on);
+      fadeControls.style.display = fade.on ? 'flex' : 'none';
+      fdStart.value = fade.start; document.getElementById('fdStartVal').textContent = fade.start + '%';
+      fdEnd.value = fade.end; document.getElementById('fdEndVal').textContent = fade.end + '%';
+      document.querySelectorAll('.fdir').forEach(function (x) { x.classList.toggle('on', x.dataset.dir === fade.dir); });
+      document.querySelectorAll('.fcrv').forEach(function (x) { x.classList.toggle('on', x.dataset.crv === fade.curve); });
+    }
+    if (s.band) {
+      Object.assign(band, s.band);
+      document.getElementById('bandH').value = band.h;
+      document.getElementById('bandHVal').textContent = band.h + '%';
+      document.getElementById('bandOff').value = band.off;
+      document.getElementById('bandOffVal').textContent = band.off + '%';
+    }
+    if (s.exportCfg) {
+      Object.assign(exportCfg, s.exportCfg);
+      document.querySelectorAll('.cv').forEach(function (x) { x.classList.toggle('on', x.dataset.cv === exportCfg.canvas); });
+      document.querySelectorAll('.pos').forEach(function (x) { x.classList.toggle('on', x.dataset.pos === exportCfg.position); });
+      document.querySelectorAll('.fitm').forEach(function (x) { x.classList.toggle('on', x.dataset.fit === exportCfg.fit); });
+      document.getElementById('cw').value = exportCfg.customW;
+      document.getElementById('ch').value = exportCfg.customH;
+      mg.value = exportCfg.margin; mgVal.textContent = exportCfg.margin;
+      syncExportUI();
+    }
     draw();
     setStatus('Bentuk dimuat ✓');
   };
 
+  // ================= Ekspor =================
+  // Semua ukuran di fungsi-fungsi ini memakai piksel gambar asli, bukan
+  // piksel pratinjau, supaya hasilnya tidak bergantung pada lebar jendela.
+
+  function nativeGeometry() {
+    const s = img.width / canvas.width;
+    const nr = {
+      l: Math.min(rect.l, rect.r) * s, r: Math.max(rect.l, rect.r) * s,
+      t: Math.min(rect.t, rect.b) * s, b: Math.max(rect.t, rect.b) * s,
+    };
+    const sh = shadow.on
+      ? { on: true, x: shadow.x * s, y: shadow.y * s, blur: shadow.blur * s, op: shadow.op, color: shadow.color }
+      : null;
+    const ol = outline.on && outline.w > 0
+      ? { on: true, w: outline.w * s, color: outline.color, pos: outline.pos }
+      : null;
+
+    // Kotak pembatas ikut menghitung ruang yang dipakai shadow dan outline luar.
+    // Tanpa ini, efeknya menempel ke tepi kanvas begitu bentuknya dipusatkan.
+    const bbox = { l: nr.l, t: nr.t, r: nr.r, b: nr.b };
+    if (sh) {
+      bbox.l = Math.min(bbox.l, nr.l + sh.x - sh.blur);
+      bbox.r = Math.max(bbox.r, nr.r + sh.x + sh.blur);
+      bbox.t = Math.min(bbox.t, nr.t + sh.y - sh.blur);
+      bbox.b = Math.max(bbox.b, nr.b + sh.y + sh.blur);
+    }
+    if (ol) {
+      const ext = ol.pos === 'outer' ? ol.w : (ol.pos === 'center' ? ol.w / 2 : 0);
+      bbox.l = Math.min(bbox.l, nr.l - ext);
+      bbox.r = Math.max(bbox.r, nr.r + ext);
+      bbox.t = Math.min(bbox.t, nr.t - ext);
+      bbox.b = Math.max(bbox.b, nr.b + ext);
+    }
+    return { s, nr, nR: radius * s, sh, ol, bbox };
+  }
+
+  function targetSize(g) {
+    if (exportCfg.canvas === 'source') return { w: img.width, h: img.height };
+    if (exportCfg.canvas === 'custom') {
+      return {
+        w: clamp(Math.round(exportCfg.customW) || 1, 16, 16384),
+        h: clamp(Math.round(exportCfg.customH) || 1, 16, 16384),
+      };
+    }
+    if (exportCfg.canvas === 'trim') {
+      const m = exportCfg.margin;
+      return {
+        w: Math.max(16, Math.ceil(g.bbox.r - g.bbox.l + m * 2)),
+        h: Math.max(16, Math.ceil(g.bbox.b - g.bbox.t + m * 2)),
+      };
+    }
+    const p = exportCfg.canvas.split('x');
+    return { w: parseInt(p[0], 10), h: parseInt(p[1], 10) };
+  }
+
+  // Satu sumber kebenaran untuk ukuran, skala, dan pergeseran — dipakai
+  // bersama oleh panel info dan proses ekspor supaya angkanya selalu sama.
+  function exportPlan() {
+    const g = nativeGeometry();
+    const size = targetSize(g);
+    const m = exportCfg.margin;
+    const bw = g.bbox.r - g.bbox.l;
+    const bh = g.bbox.b - g.bbox.t;
+    const cx = (g.bbox.l + g.bbox.r) / 2;
+    const cy = (g.bbox.t + g.bbox.b) / 2;
+
+    let k = 1, tx = 0, ty = 0;
+
+    if (exportCfg.canvas === 'trim') {
+      tx = m - g.bbox.l;
+      ty = m - g.bbox.t;
+    } else if (exportCfg.position === 'original') {
+      // Seluruh frame dipetakan ke kanvas, bentuk tetap di tempat aslinya.
+      if (exportCfg.fit === 'fit') k = Math.min(1, size.w / img.width, size.h / img.height);
+      tx = (size.w - img.width * k) / 2;
+      ty = (size.h - img.height * k) / 2;
+    } else if (exportCfg.position === 'bottom') {
+      // Tengah secara mendatar, menempel ke bawah dengan jarak sebesar margin.
+      if (exportCfg.fit === 'fit') {
+        k = Math.min(1, size.w / bw, Math.max(1, size.h - m) / bh);
+      }
+      tx = size.w / 2 - cx * k;
+      ty = (size.h - m) - g.bbox.b * k;
+    } else {
+      if (exportCfg.fit === 'fit') {
+        k = Math.min(1, Math.max(1, size.w - m * 2) / bw, Math.max(1, size.h - m * 2) / bh);
+      }
+      tx = size.w / 2 - cx * k;
+      ty = size.h / 2 - cy * k;
+    }
+
+    const placed = {
+      l: g.bbox.l * k + tx, t: g.bbox.t * k + ty,
+      r: g.bbox.r * k + tx, b: g.bbox.b * k + ty,
+    };
+    const clipped = placed.l < -0.5 || placed.t < -0.5 ||
+                    placed.r > size.w + 0.5 || placed.b > size.h + 0.5;
+
+    return { g, size, k, tx, ty, clipped, bw, bh, placed };
+  }
+
+  function updateExportInfo() {
+    const el = document.getElementById('exInfo');
+    if (!el) return;
+    if (!img) { el.textContent = 'Belum ada gambar.'; el.style.color = 'var(--muted)'; return; }
+    const p = exportPlan();
+    const bits = [
+      'Kanvas ' + p.size.w + '×' + p.size.h,
+      'bentuk ' + Math.round(p.bw * p.k) + '×' + Math.round(p.bh * p.k),
+      'skala ' + Math.round(p.k * 1000) / 10 + '%',
+    ];
+    if (p.clipped) bits.push('bentuk melebihi kanvas — akan terpotong');
+    el.textContent = bits.join('   ·   ');
+    el.style.color = p.clipped ? 'var(--danger)' : 'var(--muted)';
+  }
+
+  function exportName(size) {
+    const where = exportCfg.canvas === 'trim' ? 'pas'
+      : exportCfg.position === 'bottom' ? 'tengah-bawah'
+      : exportCfg.position === 'center' ? 'tengah'
+      : 'asli';
+    return 'lower-third-' + size.w + 'x' + size.h + '-' + where + '.png';
+  }
+
   document.getElementById('btnExport').onclick = function () {
     if (!img) { setStatus('Upload gambar dulu', 'var(--danger)'); return; }
-    const s = img.width / canvas.width;
-
-    // padding needed so shadow & outer outline aren't clipped
-    let pad = 0;
-    if (shadow.on) {
-      pad = Math.max(pad, shadow.blur + Math.abs(shadow.x) + Math.abs(shadow.y) + 4);
-    }
-    if (outline.on && (outline.pos === 'outer' || outline.pos === 'center')) {
-      pad = Math.max(pad, outline.w + 2);
-    }
-    const padPx = Math.ceil(pad * s);
+    const plan = exportPlan();
+    const g = plan.g, k = plan.k, tx = plan.tx, ty = plan.ty, size = plan.size;
 
     const out = document.createElement('canvas');
-    out.width = img.width + padPx * 2;
-    out.height = img.height + padPx * 2;
+    out.width = size.w;
+    out.height = size.h;
     const o = out.getContext('2d');
 
-    o.save();
-    o.translate(padPx, padPx);
-
-    const scaledRect = { l: rect.l * s, t: rect.t * s, r: rect.r * s, b: rect.b * s };
-    const scaledShadow = shadow.on ? {
-      on: true, x: shadow.x * s, y: shadow.y * s, blur: shadow.blur * s, op: shadow.op, color: shadow.color,
-    } : null;
-    const scaledOutline = outline.on ? {
-      on: true, w: outline.w * s, color: outline.color, pos: outline.pos,
-    } : null;
-
-    // Draw the source image at its native size onto the padded export canvas.
     const base = document.createElement('canvas');
     base.width = img.width; base.height = img.height;
     base.getContext('2d').drawImage(img, 0, 0);
 
-    renderCompositeExport(o, scaledRect, radius * s, base, scaledOutline, scaledShadow);
-    o.restore();
+    // Koordinat dihitung langsung ke ruang kanvas keluaran, bukan lewat
+    // transform kanvas: shadowOffset dan shadowBlur tidak ikut transform
+    // secara konsisten di semua peramban.
+    const box = {
+      l: g.nr.l * k + tx, t: g.nr.t * k + ty,
+      r: g.nr.r * k + tx, b: g.nr.b * k + ty,
+    };
+    const sh = g.sh ? { on: true, x: g.sh.x * k, y: g.sh.y * k, blur: g.sh.blur * k, op: g.sh.op, color: g.sh.color } : null;
+    const ol = g.ol ? { on: true, w: g.ol.w * k, color: g.ol.color, pos: g.ol.pos } : null;
+    const imgRect = { x: tx, y: ty, w: img.width * k, h: img.height * k };
+
+    renderCompositeExport(o, box, g.nR * k, base, imgRect, ol, sh);
 
     const a = document.createElement('a');
-    a.download = 'lower-third.png';
+    a.download = exportName(size);
     a.href = out.toDataURL('image/png');
     a.click();
-    setStatus('PNG diunduh ✓' + (padPx ? ' (dengan ruang efek ' + padPx + 'px)' : ''));
+
+    setStatus('PNG diunduh — ' + size.w + '×' + size.h +
+      (k !== 1 ? ' pada skala ' + (Math.round(k * 1000) / 10) + '%' : '') +
+      (plan.clipped ? ' · sebagian terpotong' : ''),
+      plan.clipped ? 'var(--danger)' : 'var(--ok)');
   };
 
-  // Export-time composite that draws the source image at its native size.
-  function renderCompositeExport(c, box, R, srcImg, lw, sh) {
+  function renderCompositeExport(c, box, R, srcImg, ir, lw, sh) {
+    function paintImage() { c.drawImage(srcImg, ir.x, ir.y, ir.w, ir.h); }
+
     if (sh && sh.on) {
       c.save();
       c.shadowColor = hexToRgba(sh.color, sh.op / 100);
@@ -420,7 +732,12 @@
     c.save();
     buildPath(c, R, box);
     c.clip();
-    c.drawImage(srcImg, 0, 0);
+    paintImage();
+    if (fade.on) {
+      c.globalCompositeOperation = 'destination-out';
+      c.fillStyle = fadeGradient(c, box);
+      c.fillRect(box.l, box.t, box.r - box.l, box.b - box.t);
+    }
     c.restore();
 
     if (lw && lw.on && lw.w > 0) {
@@ -445,7 +762,12 @@
         c.save();
         buildPath(c, R, box);
         c.clip();
-        c.drawImage(srcImg, 0, 0);
+        paintImage();
+        if (fade.on) {
+          c.globalCompositeOperation = 'destination-out';
+          c.fillStyle = fadeGradient(c, box);
+          c.fillRect(box.l, box.t, box.r - box.l, box.b - box.t);
+        }
         c.restore();
       } else {
         buildPath(c, R, box);
